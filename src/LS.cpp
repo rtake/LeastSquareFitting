@@ -15,6 +15,26 @@ using namespace std;
 using namespace Eigen;
 
 
+class Distfunc {
+	public:
+		Distfunc() {}
+		Distfunc(double r, int j) : r(r), j(j) {}
+		Distfunc(const Distfunc& df) : r(df.r), j(df.j) {}
+		void Set(double r, int j) { this->r = r; this->j = j; }
+
+		double func(string type) {
+			if( strstr(type.c_str(),"inverse") ) return pow(r,-j);
+			else if( strstr(type.c_str(),"exp") ) return pow( (1 - exp(-0.5 * r) ),j);
+			else return -1;
+		}
+
+	private:
+		double r; // distance
+		int j; // degree
+};
+
+
+/*
 class InverseDist {
 	public:
 		InverseDist() {} // constructor
@@ -39,33 +59,54 @@ class Exptype {
 		int deg;
 		double dist;
 };
+*/
 
 
-/*
 class BaseFunc {
 	public:
 		BaseFunc() {} // constructor
-		BaseFunc(int deg, double dist) : deg(deg), dist(dist) {} // constructor
-		BaseFunc(const BaseFunc &i) : deg(i.deg), dist(i.dist) {} // copy constructor
-		void Set(int deg, double dist) { this->deg = deg; this->dist = dist; } // Setter
-		double func() {}
+		// BaseFunc(int deg, double dist) : deg(deg), dist(dist) {} // constructor
+		BaseFunc(const BaseFunc &bf) : vec_df(bf.vec_df) {} // copy constructor
+		void Set(vector<Distfunc> vec_df) { this->vec_df = vec_df; } // Setter
+
+		double func(string type) {
+			double v = 1;
+			for(int i = 0;i < (int)vec_df.size();i++) v *= vec_df[i].func(type);
+			return v;
+		}
+
 	private:
-		int deg; // degree
-		double dist; // distance
+		vector<Distfunc> vec_df;
 };
 
 
-class InverseDist : BaseFunc {
+class Fittingfunc {
 	public:
-		double func() { return pow(dist, -deg); }
+		Fittingfunc() {}
+		Fittingfunc(int nref, int nbase) : g(nref,nbase), F(nref) {}
+		Fittingfunc(const Fittingfunc& ff) : g(ff.g), F(ff.F), a(ff.a) {}
+		void SetValf(vector<double> vals) { for(int i = 0;i < (int)vals.size();i++) { F(i) = vals[i]; } }
+
+		void SetMatf(vector< vector<double> > mat) {
+			for(int i = 0;i < (int)mat.size();i++) {
+				for(int j = 0;j < (int)mat[i].size();j++) g(i,j) = mat[i][j];
+			}
+		}
+
+		void fit() { a = g.bdcSvd(ComputeThinU | ComputeThinV).solve(F); }
+
+		double GetVal(vector<double> vec) {
+			double v = 0;
+			for(int i = 0;i < (int)vec.size();i++) v += a(i) * vec[i];
+			return v;
+		}
+
+	private:
+		MatrixXf g; // 
+		VectorXf F; // real value
+		VectorXf a; // coefficients	
 };
 
-
-class Exptype : BaseFunc {
-	public:
-		double func() { return pow( (1 - exp(-0.5 * dist) ), deg); }
-};
-*/
 
 int main(int argc, char* argv[]) {
 	int nref, nbase;
@@ -89,22 +130,48 @@ int main(int argc, char* argv[]) {
 		else if( strstr(line.c_str(),"type") ) { sscanf(pt + 2,"%s", buf); type = buf; /* cout << type << endl; */ }
 	}
 
-	MatrixXf g(nref,nbase);
-	VectorXf F(nref), a;
+	Fittingfunc ff(nref,nbase);
+
 	double distmax = 3.0, distmin = 0.3, step = 0.005;
 	int npoint = (distmax - distmin) / step;
 
-	vector<double> distlist(nref);
+	vector<double> distref(nref),eneref(nref);
 	for(int i = 0;i < nref;i++) {
-		string line;
-		double distance,energy;
-		
 		getline(ifs,line);
-		sscanf(line.c_str(),"%lf\t%lf\n", &distance, &energy);
-
-		F(i) = energy; distlist[i] = distance;
+		sscanf(line.c_str(),"%lf\t%lf\n", &distref[i], &eneref[i]);
 	}
 
+	ff.SetValf(eneref);
+
+	vector< vector<Distfunc> > mat_df( nref, vector<Distfunc>(nbase) );
+	vector< vector<double> > mat_f( nref, vector<double>(nbase) );
+	for(int i = 0;i < nref;i++) {
+		for(int j = 0;j < nbase;j++) {
+			mat_df[i][j].Set(distref[i],j + 1);
+			mat_f[i][j] = mat_df[i][j].func(type);
+		}	
+	}
+
+	ff.SetMatf(mat_f);
+	ff.fit(); // fitting
+
+	vector<double> vals(npoint), distlist(npoint);
+	for(int i = 0;i < npoint;i++) {
+		distlist[i] = distmin + step * i;
+
+		vector<double> argvec(nbase,0);
+		for(int j = 0;j < nbase;j++) {
+			Distfunc df(distlist[i],j + 1);
+			argvec[j] = df.func(type);
+		}
+
+		vals[i] = ff.GetVal(argvec);
+	}
+
+	for(int i = 0;i < npoint;i++) ofs << distlist[i] << "\t" << vals[i] << endl;
+
+
+/*
 	if(strstr(type.c_str(),"inverse") != NULL) { cout << "InverseDist type" << endl;
 		vector< vector<InverseDist> > imat( nref, vector<InverseDist>(nbase) );
 		for(int i = 0;i < nref;i++) {
@@ -144,7 +211,7 @@ int main(int argc, char* argv[]) {
 	cout << "Here is the matrix g:\n" << g << endl;
 	cout << "Here is the right hand side F:\n" << F << endl;
 	cout << "The least-squares solution is:\n" << a << endl;
-
+*/
 /*	for(int i = 0;i < nref;i++) {
 		double F = 0;
 		for(int j = 0;j < nbase + 1;j++) { F += a(j) * g(i,j); }
