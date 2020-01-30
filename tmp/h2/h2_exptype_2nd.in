@@ -1,0 +1,5 @@
+nref	: 10
+nbase	: 2
+refs	: h2.ref
+fit	: h2_exptype_2nd.fit
+type	: exp type
