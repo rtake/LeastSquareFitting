@@ -67,31 +67,37 @@ class BaseFunc {
 class FittingFunc {
 	public:
 		FittingFunc() {}
-		FittingFunc(VectorXf a) : a(a) {}
-		FittingFunc(const FittingFunc& ff) : a(ff.a), vec_b(ff.vec_b) {}
+		FittingFunc(VectorXf a) : a(a) { cout << "Initialized with Coefficients VectorXf a :\n" << a << endl; }
+		FittingFunc(const FittingFunc& ff) : a(ff.a), vec_bf(ff.vec_bf) {}
 		void SetCoeff(VectorXf a) { this->a = a; }
-		void SetBasissets(vector<BaseFunc> vec_bf) { this->vec_b = vec_b; }
+		void SetBasissets(vector<BaseFunc> vec_bf) { this->vec_bf = vec_bf; }
 
 		double func() {
 			double v = 0; 
-			for(int i = 0;i < (int)vec_b.size();i++) v += a(i) * vec_b[i].func();
+			for(int i = 0;i < (int)vec_bf.size();i++) v += a(i) * vec_bf[i].func();
 			return v;
 		} // get value
 
 	private:
 		VectorXf a; // Coefficients
-		vector<BaseFunc> vec_b; // basis sets
+		vector<BaseFunc> vec_bf; // basis sets
 };
 
 
 class LSFitting {
 	public:
 		LSFitting() {}
+		LSFitting(int nrow, int nclm) : g(nrow,nclm), F(nrow) {}
 		LSFitting(const LSFitting& lsf) : g(lsf.g), F(lsf.F) {}
-		void SetValf(vector<double> vals) { for(int i = 0;i < (int)vals.size();i++) F(i) = vals[i]; }
+
+		void SetValf(vector<double> vals) {
+			for(int i = 0;i < (int)vals.size();i++) F(i) = vals[i]; 
+			cout << "VectorXf F :\n" << F << endl;
+		}
 
 		void SetMatf(vector< vector<double> > mat) { 
 			for(int i = 0;i < (int)mat.size();i++) { for(int j = 0;j < (int)mat[i].size();j++) g(i,j) = mat[i][j]; } 
+			cout << "MatrixXf g :\n" << g << endl;
 		}
 
 		VectorXf fit() { return g.bdcSvd(ComputeThinU | ComputeThinV).solve(F); } // fitting here
@@ -145,15 +151,16 @@ vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type, int rst) {
 
 
 void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& vec_f) {
-	string s;
+	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
 
+	string s;
 	for(int i = 0;getline(ifs, s);i++) { cout << s << endl;
 		stringstream ssline(s);
 		string line;
-		double v;
 		vector<double> vals; // vector of distance of each atom pair
 
-		for(int j = 0;getline(ssline,line,'\t');j++) {
+		for(int j = 0;getline(ssline,line,'\t');j++) { cout << "line\t" << line << endl;
+			double v;
 			int chk = sscanf(line.c_str(),"%lf",&v);
 			if(chk <= 0) printf("sscanf in inPESdata() failed, i : %d, j : %d\n",i,j);
 
@@ -163,7 +170,6 @@ void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& v
 	
 		mat_f[i] = vals; // mat_f.push_back(vals);
 	}
-
 	printf("inPESdata() ok\n");
 }
 
@@ -180,6 +186,7 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 		ofs << endl; cout << endl;
 	}
 
+	printf("outPESdata() ok\n");
 }
 
 
@@ -219,27 +226,27 @@ int main(int argc, char* argv[]) {
 	vector< vector<double> > distref( nref, vector<double>( natom * (natom - 1) ) ), distlist( npoint, vector<double>( natom * (natom - 1) ) );
 	vector<double> eneref(nref), enelist(npoint);
 	inPESdata(ifsref,distref,eneref); // cout << "load ok\n";
-	inPESdata(ifsall,distlist,enelist); // cout << "load ok\n";
+	inPESdata(ifsall,distlist,enelist); // cout << "load ok\n"; outPESdata(ofs,distlist,enelist); // output here ok
 
 
 	// set matrix for fitting
 
 	vector< vector<double> > mat_f( nref, vector<double>(nbase) );
 	for(int i = 0;i < nref;i++) { // for each ref. point
-		vector<BaseFunc> vec_b = setBaseFuncvec(distref[i],type,nbase); // set basis sets for this ref. point
-		for(int j = 0;j < nbase;j++) mat_f[i][j] = vec_b[j].func();
+		vector<BaseFunc> vec_bf = setBaseFuncvec(distref[i],type,nbase); // set basis sets for this ref. point
+		for(int j = 0;j < nbase;j++) mat_f[i][j] = vec_bf[j].func();
 	}
 
 
 	// fitting
 
-	LSFitting lsf;
-	// lsf.SetMatf(mat_f); // set matrix
-	// lsf.SetValf(eneref); // set lef vector value
+	LSFitting lsf( (int)mat_f.size(), (int)mat_f[0].size() );
+	lsf.SetMatf(mat_f); // set matrix
+	lsf.SetValf(eneref); // set left vector value
 
 
 	// calc. value from fitting function
-/*
+
 	vector<FittingFunc> vec_ff( npoint, lsf.fit() ); // initializing with least square fitting coefficient
 	for(int i = 0;i < npoint;i++) vec_ff[i].SetBasissets( setBaseFuncvec(distlist[i],type,nbase) );
 
@@ -249,7 +256,7 @@ int main(int argc, char* argv[]) {
 	vector<double> enefits(npoint);
 	for(int i = 0;i < npoint;i++) enefits[i] = vec_ff[i].func();
 	outPESdata(ofs,distlist,enefits);
-*/	
+	
 	return 0;
 }
 
