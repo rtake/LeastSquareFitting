@@ -8,6 +8,7 @@
 # include <set>
 # include <sstream>
 # include <utility>
+# include <algorithm>
 
 # include <Eigen/Dense>
 
@@ -101,29 +102,105 @@ class LSFitting {
 };
 
 
-vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type) { // set vector of BaseFunc
-	vector<BaseFunc> vec_b;
-	return vec_b;
+vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type, int rst) { // set vector of BaseFunc
+	int npair = (int)distlist.size(); // distlist contains number of combination (number of atom pair)
+	vector<BaseFunc> vec_bf;
+
+	for(int i = 0;i < rst;i++) { // for each i ( < n) ; n means sumation restriction
+		vector< vector<int> > mat_i;
+		vector<int> vec_i(npair,0);
+
+		vec_i[0] = i;
+		do { mat_i.push_back(vec_i); } while( next_permutation( vec_i.begin(), vec_i.end() ) );
+
+		int ncmb = (int)mat_i.size(); // number of combination (permutation)
+		for(int j = 0;j < ncmb;j++) { // for each permunation (combination)
+			BaseFunc bf;
+			vector<DistFunc> vec_df; // set of DistFunc
+
+			for(int k = 0;k < npair;k++) { // for each atom pair
+				if(mat_i[j][k] > 0) { // if the degree is not zero
+					DistFunc df(distlist[j],mat_i[j][k],type);
+					vec_df.push_back(df); // add the base func
+				} 
+			}
+
+			bf.Set(vec_df);
+			vec_bf.push_back(bf);
+		}
+
+		for(int j = 0;j < ncmb;j++) {
+			cout << "(";
+			for(int k = 0;k < npair;k++) {
+				cout << " " << mat_i[j][k];
+			}
+			cout << " )\n";
+		}
+
+	}
+
+	cout << "set BaseFunc ok\n";
+	return vec_bf;
 }
 
 
-void inPESdata(const ifstream& ifs, vector< vector<double> > mat_f, vector<double> vec_f) {}
+void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& vec_f) {
+	string s;
 
-void outPESdata(const ofstream& ofs, vector< vector<double> > mat_f, vector<double> vec_f) {}
+	for(int i = 0;getline(ifs, s);i++) { cout << s << endl;
+		stringstream ssline(s);
+		string line;
+		double v;
+		vector<double> vals; // vector of distance of each atom pair
+
+		for(int j = 0;getline(ssline,line,'\t');j++) {
+			int chk = sscanf(line.c_str(),"%lf",&v);
+			if(chk <= 0) printf("sscanf in inPESdata() failed, i : %d, j : %d\n",i,j);
+
+			if(j == 0) vec_f[i] = v; // vec_f.push_back(v);			
+			else if(j > 0) vals.push_back(v);
+		}
+	
+		mat_f[i] = vals; // mat_f.push_back(vals);
+	}
+
+	printf("inPESdata() ok\n");
+}
+
+
+void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> vec_f) {
+	int n = (int)mat_f.size(); // vector of (vector of distance)
+	
+	if( n != (int)vec_f.size() ) { cout << "number of rows not matched !\n"; return; }
+	else printf("natom chk --> ok (n : %d)\n",n);
+
+	for(int i = 0;i < n;i++) {
+		ofs << vec_f[i]; cout << vec_f[i];
+		for(int j = 0;j < (int)mat_f[i].size();j++) { ofs << "\t" << mat_f[i][j]; cout << "\t" << mat_f[i][j]; }
+		ofs << endl; cout << endl;
+	}
+
+}
 
 
 int main(int argc, char* argv[]) {
+
+	// vals 
+
 	int nref, nbase, natom, npoint;
 	string refs, fit, type, line, all;
 	ofstream ofs;
 	ifstream ifsref, ifsall;
+
+	
+	// load input file xxx.in // ok
 
 	if(argc <= 1) { cout << "No input file\n"; return -1; }
 
 	string filename = argv[1];
 	ifstream input( filename.c_str() );
 
-	while( getline(input, line) ) { cout << cnt++ << " " << line << endl;
+	while( getline(input, line) ) {
 		const char* pt = strstr(line.c_str(),":");
 		char buf[256];
 		if( strstr(line.c_str(),"nref") ) { sscanf(pt + 2,"%d",&nref); } // number of ref. point
@@ -137,18 +214,19 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	// load data sets
+	// load data sets // ok
 
 	vector< vector<double> > distref( nref, vector<double>( natom * (natom - 1) ) ), distlist( npoint, vector<double>( natom * (natom - 1) ) );
 	vector<double> eneref(nref), enelist(npoint);
-	inPESdata(ifsref,distref,eneref); inPESdata(ifsall,distlist,enelist);
+	inPESdata(ifsref,distref,eneref); // cout << "load ok\n";
+	inPESdata(ifsall,distlist,enelist); // cout << "load ok\n";
 
 
 	// set matrix for fitting
 
 	vector< vector<double> > mat_f( nref, vector<double>(nbase) );
 	for(int i = 0;i < nref;i++) { // for each ref. point
-		vector<BaseFunc> vec_b = setBaseFuncvec(distref[i],type); // set basis sets for this ref. point
+		vector<BaseFunc> vec_b = setBaseFuncvec(distref[i],type,nbase); // set basis sets for this ref. point
 		for(int j = 0;j < nbase;j++) mat_f[i][j] = vec_b[j].func();
 	}
 
@@ -156,14 +234,14 @@ int main(int argc, char* argv[]) {
 	// fitting
 
 	LSFitting lsf;
-	lsf.SetMatf(mat_f); // set matrix
-	lsf.SetValf(eneref); // set lef vector value
+	// lsf.SetMatf(mat_f); // set matrix
+	// lsf.SetValf(eneref); // set lef vector value
 
 
 	// calc. value from fitting function
-
+/*
 	vector<FittingFunc> vec_ff( npoint, lsf.fit() ); // initializing with least square fitting coefficient
-	for(int i = 0;i < npoint;i++) vec_ff[i].SetBasissets( setBaseFuncvec(distlist[i],type) );
+	for(int i = 0;i < npoint;i++) vec_ff[i].SetBasissets( setBaseFuncvec(distlist[i],type,nbase) );
 
 
 	// file out
@@ -171,7 +249,7 @@ int main(int argc, char* argv[]) {
 	vector<double> enefits(npoint);
 	for(int i = 0;i < npoint;i++) enefits[i] = vec_ff[i].func();
 	outPESdata(ofs,distlist,enefits);
-	
+*/	
 	return 0;
 }
 
