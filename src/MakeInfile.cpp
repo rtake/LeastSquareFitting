@@ -10,8 +10,11 @@
 # include <utility>
 # include <algorithm>
 
+# include "Rtlib.h"
+
 using namespace std;
 
+/*
 void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& vec_f) {
 	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
 
@@ -37,6 +40,8 @@ void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& v
 
 
 void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> vec_f) {
+	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
+
 	int n = (int)mat_f.size(); // vector of (vector of distance)
 	
 	if( n != (int)vec_f.size() ) { cout << "number of rows not matched !\n"; return; }
@@ -50,37 +55,89 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 
 	printf("outPESdata() ok\n");
 }
+*/
+
+int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
+	int nmol = 0;
+	string line;
+
+	while( getline(ifs,line) ) { // cout << line << endl;
+		
+		if( strstr( line.c_str(), "# ITR.") ) { // cout << line << endl;
+
+			vector<Atom> mol;
+			while( getline(ifs,line) ) { // get molecule
+				Atom a;
+				if(a.SetfromString(line) == 0) {
+					mol.push_back(a);
+					// cout << line << endl; 
+				} else break;
+			}
+
+			while( getline(ifs,line) ) { // get energy
+				double e;
+				const char* pt = strstr( line.c_str(), "ENERGY");
+				if(pt) { // cout << line << endl; 
+					sscanf(pt + 11,"%17lf",&e); elist.push_back(e); 
+					break; 
+				}
+			}
+
+			mols.push_back(mol);
+			nmol++;
+		}
+
+	}
+
+	return nmol;
+}
 
 
 int main(int argc, char* argv[]) {
 
-	// vals 
+	// vals
 
-	int nref, nbase, natom, npoint;
-	string refs, fit, type, line, all;
-	ofstream ofs;
-	ifstream ifsref, ifsall;
+	ifstream ifs; // log file
+	ofstream ofs; // data file
+	vector< vector<double> > dlist;
+	vector<double> elist;
+	vector< vector<Atom> > mols;
+	int nmol, natom;
 
-	
-	// load input file xxx.in // ok
+	// args analysis
 
-	if(argc <= 1) { cout << "No input file\n"; return -1; }
+	if(argc < 5) { cout << "No input file (-i input -o output)\n"; return -1; }
+	else if(argc > 5) { cout << "Too much args (-i input -o output)\n"; return -1; }
 
-	string filename = argv[1];
-	ifstream input( filename.c_str() );
-
-	while( getline(input, line) ) {
-		const char* pt = strstr(line.c_str(),":");
-		char buf[256];
-		if( strstr(line.c_str(),"nref") ) { sscanf(pt + 2,"%d",&nref); } // number of ref. point
-		else if( strstr(line.c_str(),"nbase") ) { sscanf(pt + 2,"%d",&nbase); } // number of basis sets
-		else if( strstr(line.c_str(),"natom") ) { sscanf(pt + 2,"%d",&natom); } // number of atoms
-		else if( strstr(line.c_str(),"npoint") ) { sscanf(pt + 2,"%d",&npoint); } // number of points
-		else if( strstr(line.c_str(),"refs") ) { sscanf(pt + 2,"%s", buf); refs = buf; ifsref.open( refs.c_str() ); }
-		else if( strstr(line.c_str(),"fit") ) { sscanf(pt + 2,"%s", buf); fit = buf; ofs.open( fit.c_str() ); }
-		else if( strstr(line.c_str(),"type") ) { sscanf(pt + 2,"%s", buf); type = buf; }
-		else if( strstr(line.c_str(),"all") ) { sscanf(pt + 2,"%s", buf); all = buf; ifsall.open( all.c_str() ); }
+	for(int i = 0;i < argc;i++) {
+		if(argv[i][0] == '-') {
+			if(argv[i][1] == 'i') ifs.open(argv[i + 1]);
+			else if(argv[i][1] == 'o') ofs.open(argv[i + 1]);
+		}
 	}
+
+
+	// loading input xxx.log
+
+	nmol = GetfromMINlog(ifs,mols,elist); // number of moleculuar
+	natom = (int)mols[0].size(); // number of atom
+
+	for(int i = 0;i < nmol;i++) { // for each molecule
+
+		vector<double> vec_d; // vector of double
+		for(int j = 0;j < natom;j++) {
+			for(int k = j + 1;k < natom;k++) {
+				vec_d.push_back( Dist(mols[i][j],mols[i][k]) );
+			}
+		}
+
+		dlist.push_back(vec_d);
+	}
+
+
+	// output data
+
+	outPESdata(ofs,dlist,elist);
 
 	return 0;
 }

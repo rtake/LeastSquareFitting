@@ -11,95 +11,81 @@
 
 using namespace std;
 
-//class Atom;
-///*
+/*
+	class Atom contain element and coordinate
+	vector<Atom> match to Moleculuar
+*/
+
+
+
 class Atom {
 	public:
-		Atom() {};
-		Atom(string name, vector<double> config) { this->name = name; this->config = config; } // constructor
-		Atom(const Atom &a) { name = a.name; config = a.config; } // copy constructor
-		string getname() { return name; } // get atom name
-		vector<double> getconfig() { return config; } // get configulation
+		Atom() : crd(3,0) {}; // constructor
+		Atom(const Atom &a) : elm(a.elm), crd(a.crd) {} // copy constructor
+		vector<double> GetCrd() { return crd; }
 
-		void SetAtomfromString(string line) {
+		int SetfromString(string line) {
 			char buf[3]; vector<double> con(3,0);
-			sscanf(line.c_str(),"%s%17lf%17lf%17lf",buf,&con[0],&con[1],&con[2]);
-			string name(buf);
-			this->name = name; this->config = con; // set
+			int chk = sscanf(line.c_str(),"%s%17lf%17lf%17lf",buf,&crd[0],&crd[1],&crd[2]);
+
+			if(chk == 4) { string name(buf); this->elm = name; return 0; }
+			else return -1;
 		}
 
 	private:
-		string name; // atom name
-		vector<double> config; // atom configulation
+		string elm; // element
+		vector<double> crd; // coordinate
 };
-//*/
 
 
-//class Config;
-///*
-class Config { // Config is a set of configulation of atoms and the energy
-	public:
-		Config() {}; // default constructor
-		Config(vector<Atom> config, double energy) { this->config = config; this->energy = energy; } // constructor
-		Config(const Config &c) { config = c.config; energy = c.energy; } // copy constructor
-		double getenergy() { return energy; }
-		vector<Atom> getconfig() { return config; }
+double Dist(Atom a0, Atom a1) {
+	double sum = 0;
+	vector<double> c0 = a0.GetCrd(), c1 = a1.GetCrd();
 
-		void AddAtom(Atom a) { config.push_back(a); }
-
-	private:
-		vector<Atom> config;
-		double energy;
-};
-//*/
-
-
-vector<Config> GetConfigfromlog(ifstream& log, string type);
-/*
-vector<Config> GetConfigfromlog(ifstream& log, string type) {
-	vector<Config> vec_con; 
-	string line; // int natom = -1;
-	
-	if(strstr(type.c_str(),"ITR") != NULL) { // get all structures of iterations from "# MIN" calc.
-		while( getline(log,line) ) {
-			if(strstr(line.c_str(),"# ITR.") != NULL) { // start loading
-				Config c;
-				while( getline(log,line) ) {
-					Atom a; a.SetAtomfromString(line);
-					if( strstr(line.c_str(),"Item") != NULL ) break;
-					c.AddAtom(a);
-				}
-				vec_con.push_back(c);
-			}
-		}
-	} else if(strstr(type.c_str(),"Opt") != NULL) { // get optimized structure from "# MIN" calc.
-
-	} else { cout << "Error in GetConfigfromlog\n"; }
-
-	return vec_con;
+	for(int i = 0;i < 3;i++) sum += pow( (c0[i] - c1[i]), 2);
+	return sqrt(sum);
 }
-*/
 
 
-/*
-int main(int argc, char* argv[]) {
-	stringstream sslog; sslog << "h2o" << ".log";
-	string type("ITR");
-	vector<Config> vec_con;
+void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& vec_f) {
+	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
 
-	ifstream ifslog; ifslog.open( sslog.str().c_str() ); if(ifslog == NULL) { cout << "Not Found log file\n"; return -1; }
-	vec_con = GetConfigfromlog(ifslog,type);
-	ifslog.close();
+	string s;
+	for(int i = 0;getline(ifs, s);i++) { cout << s << endl;
+		stringstream ssline(s);
+		string line;
+		vector<double> vals; // vector of distance of each atom pair
 
-	for(int i = 0;i < (int)vec_con.size();i++) {
-		printf("ITR. %d\n",i);
-		vector<Atom> vec_a = vec_con[i].getconfig();
-		for(int j = 0;j < (int)vec_a.size();j++) {
-			Atom a = vec_a[j]; 
-			printf("%s%17lf%17lf%17lf\n",a.getname().c_str(),a.getconfig()[0],a.getconfig()[1],a.getconfig()[2]);
+		for(int j = 0;getline(ssline,line,'\t');j++) { cout << "line\t" << line << endl;
+			double v;
+			int chk = sscanf(line.c_str(),"%lf",&v);
+			if(chk <= 0) printf("sscanf in inPESdata() failed, i : %d, j : %d\n",i,j);
+
+			if(j == 0) vec_f[i] = v; // vec_f.push_back(v);			
+			else if(j > 0) vals.push_back(v);
 		}
+	
+		mat_f[i] = vals; // mat_f.push_back(vals);
+	}
+	printf("inPESdata() ok\n");
+}
+
+
+void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> vec_f) {
+	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
+
+	int n = (int)mat_f.size(); // vector of (vector of distance)
+	
+	if( n != (int)vec_f.size() ) { cout << "number of rows not matched !\n"; return; }
+	else printf("natom chk --> ok (n : %d)\n",n);
+
+	for(int i = 0;i < n;i++) {
+		ofs << vec_f[i]; cout << vec_f[i];
+		for(int j = 0;j < (int)mat_f[i].size();j++) { ofs << "\t" << mat_f[i][j]; cout << "\t" << mat_f[i][j]; }
+		ofs << endl; cout << endl;
 	}
 
-	return 0;
+	printf("outPESdata() ok\n");
 }
-*/
+
+

@@ -10,12 +10,14 @@
 # include <utility>
 # include <algorithm>
 
+# include "LSPF.h"
+# include "Rtlib.h"
 # include <Eigen/Dense>
 
 using namespace std;
 using namespace Eigen;
 
-
+/*
 class DistFunc {
 	public:
 		DistFunc() {}
@@ -175,6 +177,8 @@ void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& v
 
 
 void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> vec_f) {
+	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
+	
 	int n = (int)mat_f.size(); // vector of (vector of distance)
 	
 	if( n != (int)vec_f.size() ) { cout << "number of rows not matched !\n"; return; }
@@ -188,7 +192,7 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 
 	printf("outPESdata() ok\n");
 }
-
+*/
 
 int main(int argc, char* argv[]) {
 
