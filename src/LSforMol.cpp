@@ -194,12 +194,20 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 }
 */
 
+
+int Combination(int n, int k) {
+	if(n == k || k == 0) return 1;
+	else return ( Combination(n - 1,k - 1) + Combination(n - 1,k) );
+	return 0;
+}
+
+
 int main(int argc, char* argv[]) {
 
 	// vals 
 
-	int nref, nbase, natom, npoint;
-	string refs, fit, type, line, all;
+	int nref, rst, natom, npoint;
+	string refs, fit, type, line, all,solver;
 	ofstream ofs;
 	ifstream ifsref, ifsall;
 
@@ -215,13 +223,14 @@ int main(int argc, char* argv[]) {
 		const char* pt = strstr(line.c_str(),":");
 		char buf[256];
 		if( strstr(line.c_str(),"nref") ) { sscanf(pt + 2,"%d",&nref); } // number of ref. point
-		else if( strstr(line.c_str(),"nbase") ) { sscanf(pt + 2,"%d",&nbase); } // number of basis sets
+		else if( strstr(line.c_str(),"rst") ) { sscanf(pt + 2,"%d",&rst); } // number of basis sets
 		else if( strstr(line.c_str(),"natom") ) { sscanf(pt + 2,"%d",&natom); } // number of atoms
 		else if( strstr(line.c_str(),"npoint") ) { sscanf(pt + 2,"%d",&npoint); } // number of points
 		else if( strstr(line.c_str(),"refs") ) { sscanf(pt + 2,"%s", buf); refs = buf; ifsref.open( refs.c_str() ); }
 		else if( strstr(line.c_str(),"fit") ) { sscanf(pt + 2,"%s", buf); fit = buf; ofs.open( fit.c_str() ); }
 		else if( strstr(line.c_str(),"type") ) { sscanf(pt + 2,"%s", buf); type = buf; }
 		else if( strstr(line.c_str(),"all") ) { sscanf(pt + 2,"%s", buf); all = buf; ifsall.open( all.c_str() ); }
+		else if( strstr(line.c_str(),"solver") ) { sscanf(pt + 2,"%s", buf); solver = buf; }
 	}
 
 
@@ -235,14 +244,23 @@ int main(int argc, char* argv[]) {
 
 	// set matrix for fitting
 
-	vector< vector<double> > mat_f( nref, vector<double>(nbase) );
+	vector< vector<BaseFunc> > mat_bf(nref);
+	int nbase;
 	for(int i = 0;i < nref;i++) { // for each ref. point
-		vector<BaseFunc> vec_bf = setBaseFuncvec(distref[i],type,nbase); // set basis sets for this ref. point
-		for(int j = 0;j < nbase;j++) mat_f[i][j] = vec_bf[j].func();
+		vector<BaseFunc> vec_bf = setBaseFuncvec(distref[i],type,rst); // set basis sets for this ref. point
+		nbase = (int)vec_bf.size();
+		mat_bf[i] = vec_bf;
 	}
 
 
 	// fitting
+
+	vector< vector<double> > mat_f( nref, vector<double>(nbase) );
+	for(int i = 0;i < nref;i++) {
+		for(int j = 0;j < nbase;j++) {
+			mat_f[i][j] = mat_bf[i][j].func();
+		}
+	}
 
 	LSFitting lsf( (int)mat_f.size(), (int)mat_f[0].size() );
 	lsf.SetMatf(mat_f); // set matrix
@@ -251,8 +269,8 @@ int main(int argc, char* argv[]) {
 
 	// calc. value from fitting function
 
-	vector<FittingFunc> vec_ff( npoint, lsf.fit() ); // initializing with least square fitting coefficient
-	for(int i = 0;i < npoint;i++) vec_ff[i].SetBasissets( setBaseFuncvec(distlist[i],type,nbase) );
+	vector<FittingFunc> vec_ff( npoint, lsf.fit(solver) ); // initializing with least square fitting coefficient
+	for(int i = 0;i < npoint;i++) vec_ff[i].SetBasissets( setBaseFuncvec(distlist[i],type,rst) );
 
 
 	// file out

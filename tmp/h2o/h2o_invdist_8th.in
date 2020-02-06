@@ -1,0 +1,8 @@
+nref	: 6
+rst	: 9
+natom	: 3
+npoint	: 11
+refs	: h2o.ref
+fit	: h2o_invdist_8th.fit
+type	: inverse dist
+all	: h2o.all

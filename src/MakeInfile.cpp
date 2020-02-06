@@ -93,6 +93,21 @@ int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 }
 
 
+int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
+	int nmol = 0;
+	string line;
+
+	while( getline(ifs,line) ) {
+
+
+
+
+	}
+
+	return nmol;
+}
+
+
 int main(int argc, char* argv[]) {
 
 	// vals

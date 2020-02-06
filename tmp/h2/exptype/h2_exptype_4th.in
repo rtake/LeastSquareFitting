@@ -1,0 +1,9 @@
+nref	: 10
+rst	: 4
+natom	: 2
+npoint	: 541
+refs	: h2.ref
+fit	: h2_exptype_4th.fit
+type	: exp type
+all	: h2.all
+solver	: qr

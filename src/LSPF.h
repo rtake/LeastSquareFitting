@@ -63,6 +63,8 @@ class BaseFunc {
 			return v;
 		}
 
+		void print() { for(int i = 0;i < vec_df.size();i++) vec_df[i].print(); }
+
 	private:
 		vector<DistFunc> vec_df;
 		// string type;
@@ -105,7 +107,18 @@ class LSFitting {
 			cout << "MatrixXf g :\n" << g << endl;
 		}
 
-		VectorXf fit() { return g.bdcSvd(ComputeThinU | ComputeThinV).solve(F); } // fitting here
+		VectorXf fit(string type) {
+			if( strstr(type.c_str(),"svd") ) {
+				cout << "using SVD\n";
+				return g.bdcSvd(ComputeThinU | ComputeThinV).solve(F);  // fitting here
+			} else if( strstr(type.c_str(),"qr") ) {
+				cout << "using QR decomposition\n";
+				return g.colPivHouseholderQr().solve(F);
+			} else if( strstr(type.c_str(),"normal") ) {
+				cout << "using normal equation\n";
+				return (g.transpose() * g).ldlt().solve(g.transpose() * F);
+			}
+		}
 
 	private:
 		MatrixXf g;
@@ -117,38 +130,60 @@ vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type, int rst) {
 	int npair = (int)distlist.size(); // distlist contains number of combination (number of atom pair)
 	vector<BaseFunc> vec_bf;
 
-	for(int i = 0;i < rst;i++) { // for each i ( < n) ; n means sumation restriction
-		vector< vector<int> > mat_i;
-		vector<int> vec_i(npair,0);
+	for(int i = 0;i < npair;i++) printf("distlist[%d] : %lf\n",distlist[i]);
 
-		vec_i[0] = i;
-		do { mat_i.push_back(vec_i); } while( next_permutation( vec_i.begin(), vec_i.end() ) );
 
-		int ncmb = (int)mat_i.size(); // number of combination (permutation)
-		for(int j = 0;j < ncmb;j++) { // for each permunation (combination)
-			BaseFunc bf;
-			vector<DistFunc> vec_df; // set of DistFunc
+	vector< vector<int> > mat_i;
+	vector<int> first(npair,0);
+	mat_i.push_back(first);
 
-			for(int k = 0;k < npair;k++) { // for each atom pair
-				if(mat_i[j][k] > 0) { // if the degree is not zero
-					DistFunc df(distlist[j],mat_i[j][k],type);
-					vec_df.push_back(df); // add the base func
-				} 
+	for(int i = 0;i < mat_i.size();i++) {
+
+		for(int j = 0;j < npair;j++) {
+			int cnt = 0;
+
+			vector<int> vec_i = mat_i[i];
+			vec_i[j]++;
+
+			for(int k = 0;k < npair;k++) cnt += vec_i[k];
+			if(cnt > rst) { cout << "fin\n"; break; }
+
+
+			int ii = 0;
+			for(ii = 0;ii < mat_i.size();ii++) { // for all pushed matrix
+				vector<int> test = mat_i[ii];
+				
+				if(vec_i == mat_i[ii]) { cout << "matched\n"; ii--; break; }
+
+				// for(int jj = 0;jj < npair;jj++) { if(test[jj] == vec_i[jj]) break; }
 			}
 
-			bf.Set(vec_df);
-			vec_bf.push_back(bf);
-		}
+			if( ii < mat_i.size() ) continue;
 
-		for(int j = 0;j < ncmb;j++) {
 			cout << "(";
-			for(int k = 0;k < npair;k++) {
-				cout << " " << mat_i[j][k];
-			}
+			for(int k = 0;k < npair;k++) cout << " " << vec_i[k];
 			cout << " )\n";
-		}
+			mat_i.push_back(vec_i);
+		}		
 
 	}
+
+	for(int i = 0;i < mat_i.size();i++) { // for each combination
+		BaseFunc bf;
+		vector<DistFunc> vec_df; // set of DistFunc
+
+		for(int j = 0;j < npair;j++) { // for each atom pair
+			// if(mat_i[i][j] > 0) {
+				DistFunc df(distlist[j],mat_i[i][j],type); printf("distlist[%d] %lf mat_i[%d][%d] %d\n",j,distlist[j],i,j,mat_i[i][j]);
+				vec_df.push_back(df); // add the base func
+			// }
+		}
+
+		bf.Set(vec_df);
+		vec_bf.push_back(bf);
+	}
+
+	for(int i = 0;i < vec_bf.size();i++) vec_bf[i].print();
 
 	cout << "set BaseFunc ok\n";
 	return vec_bf;
