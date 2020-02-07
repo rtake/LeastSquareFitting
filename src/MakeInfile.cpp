@@ -93,15 +93,112 @@ int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 }
 
 
-int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
+int GetfromIRClog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
 	int nmol = 0;
 	string line;
 
+	vector<Atom> ts;
+	vector< vector<Atom> > fwd,bck;
+
+	double e_ts;
+	vector<double> elist_fwd,elist_bck; 
+
 	while( getline(ifs,line) ) {
 
+		if( strstr(line.c_str(),"INITIAL STRUCTURE") ) { // TS
+
+			while( getline(ifs,line) ) {
+				Atom a;
+				if(a.SetfromString(line) == 0) {
+					ts.push_back(a);
+				} else break;
+			}
+
+			while( getline(ifs,line) ) {
+				const char* pt = strstr( line.c_str(), "ENERGY");
+				if(pt) {
+					sscanf(pt + 11,"%17lf",&e_ts); 
+					break;
+				}
+			}
+
+			nmol++;
+
+		} else if( strstr(line.c_str(),"IRC FOLLOWING (FORWARD)") ) {
+
+			/* while( getline(ifs,line) ) {
+				double e;
+				const char* pt = strstr( line.c_str(), "ENERGY");
+
+				if(pt) {
+					sscanf(pt + 11,"%17lf",&e);
+					elist_fwd.push_back(e);
+					break;
+				}
+
+				if( strstr(line.c_str(),"# STEP") ) { 
+					vector<Atom> mol;	
+					while( getline(ifs,line) ) {
+						Atom a;
+						if(a.SetfromString(line) == 0) {
+							mol.push_back(a);
+						} else break;
+					}
+					fwd.push_back(mol);
+					nmol++;
+				}
+
+			}*/
 
 
+		} else if( strstr(line.c_str(),"IRC FOLLOWING (BACKWARD)") ) {
 
+			while( getline(ifs,line) ) { cout << line << endl;
+				/*double e;
+				const char* pt = strstr( line.c_str(), "ENERGY");
+
+				if(pt) { cout << line << endl;
+					sscanf(pt + 11,"%17lf",&e);
+					elist_bck.push_back(e); 
+					break;
+				}*/
+
+				if( strstr(line.c_str(),"# STEP") ) {
+					vector<Atom> mol;
+					double e;
+					const char* pt = strstr( line.c_str(), "ENERGY");
+
+					while( getline(ifs,line) ) {
+						Atom a;
+						if(a.SetfromString(line) == 0) { mol.push_back(a); }
+						if(pt) { cout << line << endl;
+							sscanf(pt + 11,"%17lf",&e);
+							elist_bck.push_back(e);
+							break;
+						}
+					}
+
+					bck.push_back(mol);
+					nmol++;
+				}
+
+			}
+
+		}
+
+	}
+
+	for(int i = bck.size() - 1;i >= 0;i--) {
+		mols.push_back(bck[i]);
+		elist.push_back(elist_bck[i]);
+	}
+
+	mols.push_back(ts);
+	elist.push_back(e_ts);
+
+	for(int i = 0;i < fwd.size();i++) {
+		mols.push_back(fwd[i]);
+		elist.push_back(elist_fwd[i]);
 	}
 
 	return nmol;
@@ -118,25 +215,32 @@ int main(int argc, char* argv[]) {
 	vector<double> elist;
 	vector< vector<Atom> > mols;
 	int nmol, natom;
+	string logtype;
 
 	// args analysis
 
-	if(argc < 5) { cout << "No input file (-i input -o output)\n"; return -1; }
-	else if(argc > 5) { cout << "Too much args (-i input -o output)\n"; return -1; }
+	if(argc < 7) { cout << "No input file (-i input -o output -t logtype(min or irc))\n"; return -1; }
+	else if(argc > 7) { cout << "Too much args (-i input -o output -t logtype(min or irc))\n"; return -1; }
 
 	for(int i = 0;i < argc;i++) {
 		if(argv[i][0] == '-') {
 			if(argv[i][1] == 'i') ifs.open(argv[i + 1]);
 			else if(argv[i][1] == 'o') ofs.open(argv[i + 1]);
+			else if(argv[i][1] == 't') {
+				if( strstr(argv[i + 1],"min") ) logtype = "min";
+				else if( strstr(argv[i + 1],"irc") ) logtype = "irc";
+			}
 		}
 	}
 
 
 	// loading input xxx.log
 
-	nmol = GetfromMINlog(ifs,mols,elist); // number of moleculuar
-	natom = (int)mols[0].size(); // number of atom
+	if(logtype == "min") { nmol = GetfromMINlog(ifs,mols,elist); }
+	else if(logtype == "irc") { nmol = GetfromIRClog(ifs,mols,elist); }
+	else cout << "can't find log file\n";
 
+	natom = (int)mols[0].size();
 	for(int i = 0;i < nmol;i++) { // for each molecule
 
 		vector<double> vec_d; // vector of double
