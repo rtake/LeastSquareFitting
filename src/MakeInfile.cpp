@@ -109,69 +109,64 @@ int GetfromIRClog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 
 			while( getline(ifs,line) ) {
 				Atom a;
-				if(a.SetfromString(line) == 0) {
-					ts.push_back(a);
-				} else break;
-			}
-
-			while( getline(ifs,line) ) {
 				const char* pt = strstr( line.c_str(), "ENERGY");
+
+				if(a.SetfromString(line) == 0) { ts.push_back(a); }
 				if(pt) {
-					sscanf(pt + 11,"%17lf",&e_ts); 
-					break;
-				}
+					sscanf(pt + 11,"%17lf",&e_ts);
+					break;				
+				}				
+
 			}
 
 			nmol++;
 
-		} else if( strstr(line.c_str(),"IRC FOLLOWING (FORWARD)") ) {
+		} 
+		
+		if( strstr(line.c_str(),"IRC FOLLOWING (FORWARD)") ) { cout << "FWD start\n";
 
-			/* while( getline(ifs,line) ) {
-				double e;
-				const char* pt = strstr( line.c_str(), "ENERGY");
-
-				if(pt) {
-					sscanf(pt + 11,"%17lf",&e);
-					elist_fwd.push_back(e);
-					break;
-				}
+			while( getline(ifs,line) ) {
+				if( strstr(line.c_str(),"IRC FOLLOWING (BACKWARD)") ) break;
 
 				if( strstr(line.c_str(),"# STEP") ) { 
-					vector<Atom> mol;	
+					vector<Atom> mol; // buffer	
+
 					while( getline(ifs,line) ) {
 						Atom a;
-						if(a.SetfromString(line) == 0) {
-							mol.push_back(a);
-						} else break;
+						double e;
+						const char* pt = strstr( line.c_str(), "ENERGY");
+
+						if(a.SetfromString(line) == 0) { mol.push_back(a); }
+						if(pt) { // cout << line << endl;
+							sscanf(pt + 11,"%17lf",&e);
+							elist_fwd.push_back(e);
+							break;
+						}
 					}
+
 					fwd.push_back(mol);
 					nmol++;
 				}
 
-			}*/
+			}
 
+		}
+		
+		if( strstr(line.c_str(),"IRC FOLLOWING (BACKWARD)") ) { cout << "BCK start\n";
 
-		} else if( strstr(line.c_str(),"IRC FOLLOWING (BACKWARD)") ) {
-
-			while( getline(ifs,line) ) { cout << line << endl;
-				/*double e;
-				const char* pt = strstr( line.c_str(), "ENERGY");
-
-				if(pt) { cout << line << endl;
-					sscanf(pt + 11,"%17lf",&e);
-					elist_bck.push_back(e); 
-					break;
-				}*/
+			while( getline(ifs,line) ) { // cout << line << endl;
+				if( strstr(line.c_str(),"Energy profile along IRC") ) break;
 
 				if( strstr(line.c_str(),"# STEP") ) {
 					vector<Atom> mol;
-					double e;
-					const char* pt = strstr( line.c_str(), "ENERGY");
 
 					while( getline(ifs,line) ) {
 						Atom a;
+						double e;
+						const char* pt = strstr( line.c_str(), "ENERGY");
+
 						if(a.SetfromString(line) == 0) { mol.push_back(a); }
-						if(pt) { cout << line << endl;
+						if(pt) { // cout << line << endl;
 							sscanf(pt + 11,"%17lf",&e);
 							elist_bck.push_back(e);
 							break;
@@ -190,7 +185,7 @@ int GetfromIRClog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 
 	for(int i = bck.size() - 1;i >= 0;i--) {
 		mols.push_back(bck[i]);
-		elist.push_back(elist_bck[i]);
+		elist.push_back(elist_bck[i]); // cout << elist_bck[i] << endl;
 	}
 
 	mols.push_back(ts);
@@ -198,9 +193,10 @@ int GetfromIRClog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 
 	for(int i = 0;i < fwd.size();i++) {
 		mols.push_back(fwd[i]);
-		elist.push_back(elist_fwd[i]);
+		elist.push_back(elist_fwd[i]); // cout << elist_fwd[i] << endl;
 	}
 
+	cout << "GetfromIRClog() ok\n";
 	return nmol;
 }
 

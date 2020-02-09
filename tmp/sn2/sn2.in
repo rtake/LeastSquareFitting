@@ -1,0 +1,8 @@
+nref	: 39
+rst	: 2
+natom	: 6
+npoint	: 39
+refs	: sn2.ref
+fit	: sn2.fit
+type	: exp type
+all	: sn2.all

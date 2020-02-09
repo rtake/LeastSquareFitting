@@ -1,3 +1,6 @@
+# ifndef INCLUDE_GUARD_RTLIB_H
+# define INCLUDE_GUARD_RTLIB_H
+
 # include <iostream>
 # include <string>
 # include <cstring>
@@ -51,12 +54,12 @@ void inPESdata(ifstream& ifs, vector< vector<double> >& mat_f, vector<double>& v
 	// vec_f[i]  \t  mat_f[i][0]  \t  mat_f[i][1]  \t  ...  \n
 
 	string s;
-	for(int i = 0;getline(ifs, s);i++) { cout << s << endl;
+	for(int i = 0;getline(ifs, s);i++) { // cout << s << endl;
 		stringstream ssline(s);
 		string line;
 		vector<double> vals; // vector of distance of each atom pair
 
-		for(int j = 0;getline(ssline,line,'\t');j++) { cout << "line\t" << line << endl;
+		for(int j = 0;getline(ssline,line,'\t');j++) { // cout << "line\t" << line << endl;
 			double v;
 			int chk = sscanf(line.c_str(),"%lf",&v);
 			if(chk <= 0) printf("sscanf in inPESdata() failed, i : %d, j : %d\n",i,j);
@@ -81,11 +84,14 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 
 	for(int i = 0;i < n;i++) {
 		ofs << vec_f[i]; cout << vec_f[i];
-		for(int j = 0;j < (int)mat_f[i].size();j++) { ofs << "\t" << mat_f[i][j]; cout << "\t" << mat_f[i][j]; }
+		for(int j = 0;j < (int)mat_f[i].size();j++) {
+			ofs << "\t" << mat_f[i][j];
+			// cout << "\t" << mat_f[i][j];
+		}
 		ofs << endl; cout << endl;
 	}
 
 	printf("outPESdata() ok\n");
 }
 
-
+# endif
