@@ -149,7 +149,29 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	// file out
 
 	outPESdata(ofs,distlist,enelist);
-	printf("Coeffs:\n"); for(int i = 0;i < nbase;i++) printf("a[%d]\t : %lf\n",i, mf.a(i));
+
+
+	// 1. energy, configulation
+	// 2. coeff, basis sets
+
+	printf("-- Fitting data --\n");
+	printf("Energy\tData\t\n");
+	for(int i = 0;i < npoint;i++) {
+		printf("%lf\t", enelist[i]);
+		for(int j = 0;j < npair;j++) { 	printf("%lf\t",distlist[i][j]); }
+		printf("\n");
+	}
+
+	printf("-- Fitting function --\n");
+	printf("Coeff.\tBasis set\t\n");
+	for(int i = 0;i < npoint;i++) { // for each point
+		printf("point. %d\n",i);
+		for(int j = 0;j < nbase;j++) {
+			printf("%lf\t", mf.a(j) );
+			for(int k = 0;k < npair;k++) { printf("%lf(%d)\t", distlist[i][k], mf.mat_i[j][k] ); }
+			printf("\n");
+		}
+	}
 
 	return mf;
 }
