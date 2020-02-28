@@ -194,12 +194,37 @@ void outPESdata(ofstream& ofs, vector< vector<double> > mat_f, vector<double> ve
 }
 */
 
-
+/*
 int Combination(int n, int k) {
 	if(n == k || k == 0) return 1;
 	else return ( Combination(n - 1,k - 1) + Combination(n - 1,k) );
 	return 0;
 }
+*/
+
+/*
+vector< vector<int> > MakeCmb(int size, int sum) {
+	vector< vector<int> > mat;
+
+	if(size == 1) {
+		for(int i = 0;i <= sum;i++) {
+			vector<int> vec(1,i);
+			mat.push_back(vec);
+		}
+	} else {
+		for(int i = 0;i <= sum;i++) { // 
+			vector< vector<int> > buf = MakeCmb(size - 1,i);
+			for(int j = 0;j < buf.size();j++) { // for each vector
+				vector<int> vec(1,value - i);
+				for(int k = 0;k < buf[j].size();k++) { vec.push_back(buf[j][k]); }
+				mat.push_back(vec);
+			}
+		}
+	}
+
+	return mat;
+}
+*/
 
 
 int main(int argc, char* argv[]) {
@@ -238,8 +263,8 @@ int main(int argc, char* argv[]) {
 
 	vector< vector<double> > distref( nref, vector<double>( natom * (natom - 1) ) ), distlist( npoint, vector<double>( natom * (natom - 1) ) );
 	vector<double> eneref(nref), enelist(npoint);
-	inPESdata(ifsref,distref,eneref); // cout << "load ok\n";
-	inPESdata(ifsall,distlist,enelist); // cout << "load ok\n"; outPESdata(ofs,distlist,enelist); // output here ok
+	inPESdata(ifsref,distref,eneref); printf("load ref OK\n");
+	inPESdata(ifsall,distlist,enelist); printf("load all OK\n");
 
 
 	// set matrix for fitting

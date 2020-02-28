@@ -126,17 +126,42 @@ class LSFitting {
 };
 
 
+vector< vector<int> > MakeCmb(int size, int sum) {
+	vector< vector<int> > mat;
+
+	if(size == 1) {
+		for(int i = 0;i <= sum;i++) {
+			vector<int> vec(1,i);
+			mat.push_back(vec);
+		}
+	} else {
+		for(int i = 0;i <= sum;i++) { //
+			vector< vector<int> > buf = MakeCmb(size - 1,i);
+			for(int j = 0;j < buf.size();j++) { // for each vector
+				vector<int> vec(1,sum - i);
+				for(int k = 0;k < buf[j].size();k++) { vec.push_back(buf[j][k]); }
+				mat.push_back(vec);
+			}
+		}
+	}
+
+	return mat;
+}
+
+
 vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type, int rst) { // set vector of BaseFunc
 	int npair = (int)distlist.size(); // distlist contains number of combination (number of atom pair)
 	vector<BaseFunc> vec_bf;
 
-	for(int i = 0;i < npair;i++) printf("distlist[%d] : %lf\n",distlist[i]);
+	// for(int i = 0;i < npair;i++) printf("distlist[%d] : %lf\n",distlist[i]);
 
 
-	vector< vector<int> > mat_i;
-	vector<int> first(npair,0);
-	mat_i.push_back(first);
+	vector< vector<int> > mat_i = MakeCmb(npair,rst);
 
+	// vector<int> first(npair,0);
+	// mat_i.push_back(first);
+
+	/*
 	for(int i = 0;i < mat_i.size();i++) {
 
 		for(int j = 0;j < npair;j++) {
@@ -167,23 +192,31 @@ vector<BaseFunc> setBaseFuncvec(vector<double> distlist, string type, int rst) {
 		}		
 
 	}
+	*/
+
+	// chk mat_i[i][j]
+
+	for(int i = 0;i < mat_i.size();i++) {
+		printf("mat[%d]",i);
+		for(int j = 0;j < mat_i[i].size();j++) { printf(" %d",mat_i[i][j]); }
+		printf("\n");
+	}
+
 
 	for(int i = 0;i < mat_i.size();i++) { // for each combination
 		BaseFunc bf;
 		vector<DistFunc> vec_df; // set of DistFunc
 
 		for(int j = 0;j < npair;j++) { // for each atom pair
-			// if(mat_i[i][j] > 0) {
-				DistFunc df(distlist[j],mat_i[i][j],type); printf("distlist[%d] %lf mat_i[%d][%d] %d\n",j,distlist[j],i,j,mat_i[i][j]);
-				vec_df.push_back(df); // add the base func
-			// }
+			DistFunc df(distlist[j],mat_i[i][j],type);
+			vec_df.push_back(df); // add the base func
 		}
 
 		bf.Set(vec_df);
 		vec_bf.push_back(bf);
 	}
 
-	for(int i = 0;i < vec_bf.size();i++) vec_bf[i].print();
+	// for(int i = 0;i < vec_bf.size();i++) vec_bf[i].print();
 
 	cout << "set BaseFunc ok\n";
 	return vec_bf;

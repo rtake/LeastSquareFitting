@@ -61,23 +61,22 @@ int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 	int nmol = 0;
 	string line;
 
-	while( getline(ifs,line) ) { // cout << line << endl;
+	while( getline(ifs,line) ) {
 		
-		if( strstr( line.c_str(), "# ITR.") ) { // cout << line << endl;
+		if( strstr( line.c_str(), "# ITR.") ) { 
 
 			vector<Atom> mol;
-			while( getline(ifs,line) ) { // get molecule
+			while( getline(ifs,line) ) { 
 				Atom a;
 				if(a.SetfromString(line) == 0) {
 					mol.push_back(a);
-					// cout << line << endl; 
 				} else break;
 			}
 
-			while( getline(ifs,line) ) { // get energy
+			while( getline(ifs,line) ) { 
 				double e;
 				const char* pt = strstr( line.c_str(), "ENERGY");
-				if(pt) { // cout << line << endl; 
+				if(pt) {
 					sscanf(pt + 11,"%17lf",&e); elist.push_back(e); 
 					break; 
 				}
@@ -90,6 +89,41 @@ int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 	}
 
 	return nmol;
+}
+
+
+int GetfromLUPlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
+        int nmol = 0;
+        string line;
+
+        while( getline(ifs,line) ) {
+
+                if( strstr( line.c_str(), "# NODE") ) { // printf("%s\n",line.c_str());
+
+                        vector<Atom> mol;
+                        while( getline(ifs,line) ) {
+                                Atom a;
+                                if(a.SetfromString(line) == 0) {
+                                        mol.push_back(a);
+                                } else break;
+                        }
+
+                        while( getline(ifs,line) ) {
+                                double e;
+                                const char* pt = strstr( line.c_str(), "ENERGY");
+                                if(pt) {
+                                        sscanf(pt + 11,"%17lf",&e); elist.push_back(e);
+                                        break;
+                                }
+                        }
+
+                        mols.push_back(mol);
+                        nmol++;
+                }
+
+        }
+
+        return nmol;
 }
 
 
@@ -225,6 +259,7 @@ int main(int argc, char* argv[]) {
 			else if(argv[i][1] == 't') {
 				if( strstr(argv[i + 1],"min") ) logtype = "min";
 				else if( strstr(argv[i + 1],"irc") ) logtype = "irc";
+				else if( strstr(argv[i + 1],"lup") ) logtype = "lup"; // xxx_LUPOUTt.log
 			}
 		}
 	}
@@ -234,6 +269,7 @@ int main(int argc, char* argv[]) {
 
 	if(logtype == "min") { nmol = GetfromMINlog(ifs,mols,elist); }
 	else if(logtype == "irc") { nmol = GetfromIRClog(ifs,mols,elist); }
+	else if(logtype == "lup") { nmol = GetfromLUPlog(ifs,mols,elist); }
 	else cout << "can't find log file\n";
 
 	natom = (int)mols[0].size();
