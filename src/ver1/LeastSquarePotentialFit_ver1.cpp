@@ -113,6 +113,13 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	// load data sets // ok
 
 	inPESdata(ifsref,distref,eneref); printf("load ref OK\n");
+	for(int i = 0;i < nref;i++) {
+		printf("%lf\t",eneref[i]);
+		for(int j = 0;j < npair;j++) { printf("%lf\t",distref[i][j]); }
+		printf("\n");
+	}
+
+
 	inPESdata(ifsall,distlist,enelist); printf("load all OK\n");
 
 	for(int i = 0;i < nref;i++) F(i) = eneref[i]; // set VectorXf
