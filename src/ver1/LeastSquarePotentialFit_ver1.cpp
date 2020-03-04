@@ -165,7 +165,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	printf("Energy\tData\t\n");
 	for(int i = 0;i < npoint;i++) {
 		printf("%lf\t", enelist[i]);
-		for(int j = 0;j < npair;j++) { 	printf("%lf\t",distlist[i][j]); }
+		for(int j = 0;j < npair;j++) { 	printf("%lf(%lf)\t", g_all(i,j), distlist[i][j]); }
 		printf("\n");
 	}
 
