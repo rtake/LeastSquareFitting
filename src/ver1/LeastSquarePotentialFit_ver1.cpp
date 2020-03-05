@@ -11,7 +11,7 @@
 # include <algorithm>
 
 # include <eigen-3.3.7/Eigen/Dense>
-# include "Rtlib.h"
+# include "Rtlib/Rtlib.h"
 
 using namespace std;
 using namespace Eigen;
@@ -147,6 +147,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	g_all = SetMatrixXf(mf.mat_i, distlist, mf.btype); printf("SetMatrixXf OK\n");
 
 	for(int i = 0;i < npoint;i++) { // for each data point
+		enelist[i] = 0;
 		for(int j = 0;j < nbase;j++) {
 			enelist[i] += g_all(i,j) * mf.a(j);
 		}
