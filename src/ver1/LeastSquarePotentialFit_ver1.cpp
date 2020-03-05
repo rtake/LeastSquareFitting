@@ -157,7 +157,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	// file out
 
 	outPESdata(ofs,distlist,enelist);
-
+	ofs.close();
 
 	// 1. energy, configulation
 	// 2. coeff, basis sets
