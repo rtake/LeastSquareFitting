@@ -147,6 +147,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	g_all = SetMatrixXf(mf.mat_i, distlist, mf.btype); printf("SetMatrixXf OK\n");
 
 	for(int i = 0;i < npoint;i++) { // for each data point
+		enelist[i] = 0;
 		for(int j = 0;j < nbase;j++) {
 			enelist[i] += g_all(i,j) * mf.a(j);
 		}
@@ -165,7 +166,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	printf("Energy\tData\t\n");
 	for(int i = 0;i < npoint;i++) {
 		printf("%lf\t", enelist[i]);
-		for(int j = 0;j < npair;j++) { 	printf("%lf(%lf)\t", g_all(i,j), distlist[i][j]); }
+		for(int j = 0;j < npair;j++) { 	printf("%lf\t", distlist[i][j]); }
 		printf("\n");
 	}
 
@@ -174,7 +175,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	for(int i = 0;i < npoint;i++) { // for each point
 		printf("point. %d\n",i);
 		for(int j = 0;j < nbase;j++) {
-			printf("%lf\t", mf.a(j) );
+			printf("%lf(%lf)\t", mf.a(j), g_all( i, j ) );
 			for(int k = 0;k < npair;k++) { printf("%lf(%d)\t", distlist[i][k], mf.mat_i[j][k] ); }
 			printf("\n");
 		}
