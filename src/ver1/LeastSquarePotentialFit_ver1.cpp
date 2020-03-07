@@ -11,7 +11,7 @@
 # include <algorithm>
 
 # include <eigen-3.3.7/Eigen/Dense>
-# include "Rtlib.h"
+# include "Rtlib/Rtlib.h"
 
 using namespace std;
 using namespace Eigen;
@@ -157,7 +157,7 @@ ModelFunc LeastSquarePotentialFitting(ifstream& input) {
 	// file out
 
 	outPESdata(ofs,distlist,enelist);
-
+	ofs.close();
 
 	// 1. energy, configulation
 	// 2. coeff, basis sets
