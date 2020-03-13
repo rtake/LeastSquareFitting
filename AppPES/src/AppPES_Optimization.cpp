@@ -100,9 +100,13 @@ double AppPES( AppPESInfo *a, Atom* m ) {
 		// fprintf( stdout, "coeff[%d] : %17.12lf, BaseFunc : %17.12lf\n", i, a->coeff[i], BaseFunc( a->b[i], vec ) );
 	}	// energy calculated here	// error
 
+	/* FILE OUT START */
+	/*
 	fprintf( a->fp, "Energy : %17.12lf\t", e );	// energy chk error	// here
 	for(i = 0;i < npair;i++) { fprintf( a->fp, "dist[%d] : %17.12lf\t", i, vec[i] ); }	// data chk ok
 	fprintf( a->fp, "\n" );
+	*/
+	/* FILE OUT END */
 
 	free( vec );
 
@@ -170,15 +174,14 @@ void AppPES_Free( AppPESInfo* a ) {
 		free( a->b[i] );
 	}
 	free( a->b );
-
 }
 
 
 int main( int argc, char* argv[] ) {
 	FILE *fp, *fp_in;
 	char line[256], infiles[256], fit[256], infile[256], log[256];
-	int i, j, k, num;
-	double maxdiff =0, ssize = 0.002, threshold = 0.001, alpha = 0.1, *diff;
+	int i, j, k, num, cycle, maxcycle = 10000;
+	double ene_diff, ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.1, *diff;
 
 	AppPESInfo a;
 	Atom *m, *m_diff;
@@ -218,23 +221,38 @@ int main( int argc, char* argv[] ) {
 
 		/* Optimization start */
 
-		while(true) {
+		for(cycle = 0;cycle < maxcycle;cycle++) {
 			diff = new double[a.natom * 3]; // energy diff
+			ene0 = AppPES( &a, m );
 
 			for(j = 0;j < a.natom * 3;j++) {
 				m_diff = new Atom[a.natom];
 
 				for(k = 0;k < a.natom;k++) { m_diff[k] = m[k]; }
 				m_diff[j / 3].SetCrd( j % 3, m_diff[j / 3].GetCrd( j % 3 ) + ssize );
-				diff[j] = ( AppPES( &a, m_diff ) - AppPES( &a, m ) ) / ssize;
-				maxdiff = ( maxdiff < diff[j] ) ? diff[j] : maxdiff;
+				diff[j] = ( AppPES( &a, m_diff ) - ene0 ) / ssize;
 
 				delete [] m_diff;
 			} // calc. diff
 
-			if( maxdiff < threshold ) { break; }
+			for(j = 0;j < a.natom * 3;j++) { m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) - alpha * diff[j] ); } // update
 
-			for(j = 0;j < a.natom * 3;j++) { m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) + alpha * diff[j] ); } // update
+			ene1 = AppPES( &a, m );
+			ene_diff = ene1 - ene0;
+
+			if( abs( ene_diff ) < threshold ) { break; }
+
+			/* FILE OUT START */
+			///*
+			fprintf( stdout, "%d\n", a.natom );
+			fprintf( stdout, "# Cycle. %d/%17.12lf\n", cycle, ene1 );
+			for(j = 0;j < a.natom;j++) {
+				fprintf( stdout, "%s", m[j].GetElm().c_str() );
+				for(k = 0;k < 3;k++) { fprintf( stdout, "\t%17.12lf", m[j].GetCrd(k) ); }
+				fprintf( stdout, "\n" );
+			}
+			//*/
+			/* FILE OUT END */
 
 			delete [] diff;
 		} // while not converged 
