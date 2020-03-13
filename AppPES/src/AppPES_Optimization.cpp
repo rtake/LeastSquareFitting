@@ -177,11 +177,11 @@ void AppPES_Free( AppPESInfo* a ) {
 int main( int argc, char* argv[] ) {
 	FILE *fp, *fp_in;
 	char line[256], infiles[256], fit[256], infile[256], log[256];
-	int i, j, num;
-	double maxdiff =0, ssize = 0.002, threshold = 0.001, alpha = 0.1;
+	int i, j, k, num;
+	double maxdiff =0, ssize = 0.002, threshold = 0.001, alpha = 0.1, *diff;
 
 	AppPESInfo a;
-	Atom *m;
+	Atom *m, *m_diff;
 
 	fp = fopen( argv[1], "r" );
 	while( fgets( line, 256, fp ) ) {
@@ -218,28 +218,23 @@ int main( int argc, char* argv[] ) {
 
 		/* Optimization start */
 
-		while() {
+		while(true) {
 			diff = new double[a.natom * 3]; // energy diff
 
 			for(j = 0;j < a.natom * 3;j++) {
 				m_diff = new Atom[a.natom];
 
 				for(k = 0;k < a.natom;k++) { m_diff[k] = m[k]; }
-
 				m_diff[j / 3].SetCrd( j % 3, m_diff[j / 3].GetCrd( j % 3 ) + ssize );
 				diff[j] = ( AppPES( &a, m_diff ) - AppPES( &a, m ) ) / ssize;
+				maxdiff = ( maxdiff < diff[j] ) ? diff[j] : maxdiff;
 
 				delete [] m_diff;
-
-				maxdiff = ( maxdiff < diff[j] ) ? diff[j] : maxdiff;
 			} // calc. diff
 
 			if( maxdiff < threshold ) { break; }
 
-
-			for(j = 0;j < a.natom * 3;j++) {
-				m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) + alpha * diff[j] );
-			} // update
+			for(j = 0;j < a.natom * 3;j++) { m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) + alpha * diff[j] ); } // update
 
 			delete [] diff;
 		} // while not converged 
