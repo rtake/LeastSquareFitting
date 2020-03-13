@@ -1,0 +1,6 @@
+natom	: 23
+order	: 2
+fit	: n20_h23.fit
+infiles	: n20_h23.list
+nfile	: 16
+log	: n20_h23.log

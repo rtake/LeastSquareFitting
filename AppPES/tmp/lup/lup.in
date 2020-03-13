@@ -1,0 +1,6 @@
+natom	: 23
+order	: 2
+fit	: lup.fit
+infiles	: lup.list
+nfile	: 2
+log	: lup.log

@@ -1,0 +1,6 @@
+natom	: 23
+order	: 2
+fit	: h4_o21.fit
+infiles	: h4_o21.list
+nfile	: 16
+log	: h4_o21.log
