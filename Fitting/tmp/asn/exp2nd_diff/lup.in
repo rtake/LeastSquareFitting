@@ -1,0 +1,10 @@
+nref	: 102
+rst	: 2
+natom	: 23
+npoint	: 102
+refs	: lup.ref
+fit	: lup.fit
+type	: exp type
+all	: lup.diff
+log	: lup.log
+solver	: qr

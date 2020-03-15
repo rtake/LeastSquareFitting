@@ -1,0 +1,10 @@
+nref	: 102
+rst	: 2
+natom	: 23
+npoint	: 102
+refs	: lup_f1_LUPOUTt.log.xyz.dist
+fit	: lup.fit
+type	: exp type
+all	: lup_f1_LUPOUTt.log.xyz.dist
+log	: lup.log
+solver	: qr
