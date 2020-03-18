@@ -181,7 +181,7 @@ int main( int argc, char* argv[] ) {
 	FILE *fp, *fp_in;
 	char line[256], infiles[256], fit[256], infile[256], log[256];
 	int i, j, k, num, cycle, maxcycle = 10000;
-	double ene_diff, ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.1, *diff;
+	double ene_diff, ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.0000001, *diff;
 
 	AppPESInfo a;
 	Atom *m, *m_diff;
