@@ -17,7 +17,6 @@ using namespace std;
 int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& elist) {
 	int nmol = 0;
 	double e;
-	char *pt;
 	string line;
 
 	while( getline(ifs,line) ) {
@@ -33,7 +32,7 @@ int GetfromMINlog(ifstream& ifs, vector< vector<Atom> >& mols, vector<double>& e
 			}
 
 			while( getline(ifs,line) ) { 
-				pt = strstr( line.c_str(), "ENERGY");
+				const char* pt = strstr( line.c_str(), "ENERGY");
 				if(pt) {
 					sscanf(pt + 11,"%17lf",&e); elist.push_back(e); 
 					break; 

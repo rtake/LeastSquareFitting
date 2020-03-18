@@ -1,8 +1,0 @@
-nref	: 10
-nbase	: 4
-natom	: 2
-npoint	: 10
-refs	: h2.ref
-fit	: h2_invdist_2nd.fit
-type	: inverse dist
-all	: h2.all

@@ -1,9 +1,0 @@
-nref	: 102
-rst	: 8
-natom	: 23
-npoint	: 102
-refs	: lup.ref
-fit	: lup.fit
-type	: exp type
-all	: lup.all
-solver	: qr

@@ -1,5 +1,0 @@
-nref	: 10
-nbase	: 8
-refs	: h2.ref
-fit	: h2_invdist_8th.fit
-type	: inverse dist
