@@ -1,4 +1,4 @@
-# include "Rtlib/Rtlib.h"
+# include "Rtlib/src/Rtlib.h"
 # include <eigen-3.3.7/Eigen/Dense>
 
 using namespace Eigen;
@@ -23,6 +23,15 @@ double BaseFunc( BaseInfo* b, double* vec ) {
 	// chk end //
 
 	return v;
+}
+
+
+void BaseFunc_Print( BaseInfo* b ) {
+	int i;
+	for(i = 0;i < b->npair;i++) {
+		fprintf( stdout, "( (1 - exp(-0.5 * x%d) ) ** %d )", i, b->exp[i] );
+		if( i < b->npair - 1 ) fprintf( stdout, " * ");
+	}
 }
 
 
@@ -73,6 +82,7 @@ double AppPES( AppPESInfo *a, Atom* m ) {
 	nbase = Combination( npair + a->order, a->order );
 	vec = ( double* )malloc( sizeof( double ) * npair );
 	ConvertMOLtoDIST( a->natom, m, vec );
+
 	for(i = 0;i < nbase;i++) {
 		e += a->coeff[i] * BaseFunc( a->b[i], vec ) ;
 		// fprintf( stdout, "coeff[%d] : %17.12lf, BaseFunc : %17.12lf\n", i, a->coeff[i], BaseFunc( a->b[i], vec ) );
@@ -123,21 +133,21 @@ void AppPES_Malloc( AppPESInfo* a ) {
 	npair = a->natom * ( a->natom - 1 ) / 2;
 	nbase = Combination( npair + a->order, a->order );
 
-	mat = ( int** )malloc( sizeof( int* ) * nbase );
-	for(i = 0;i < nbase;i++) { mat[i] = ( int* )malloc( sizeof( int ) * npair ); }
-	MakeCombination( npair, a->order, mat ); // here
+//	mat = ( int** )malloc( sizeof( int* ) * nbase );
+//	for(i = 0;i < nbase;i++) { mat[i] = ( int* )malloc( sizeof( int ) * npair ); }
+//	MakeCombination( npair, a->order, mat ); // here
 
 	a->b = ( BaseInfo** )malloc( sizeof( BaseInfo* ) * nbase );
 	for(i = 0;i < nbase;i++) {
 		a->b[i] = ( BaseInfo* ) malloc( sizeof( BaseInfo ) );
-		a->b[i]->exp = mat[i];
+//		a->b[i]->exp = mat[i];
 		a->b[i]->npair = npair;
 	}
 
 	a->coeff = ( double* ) malloc( sizeof( double ) * nbase );
 
 //	for(i = 0;i < nbase;i++) { free( mat[i] ); }
-	free( mat );
+//	free( mat );
 }
 
 
@@ -155,76 +165,137 @@ void AppPES_Free( AppPESInfo* a ) {
 }
 
 
-void AppPES_Fitting_LS( AppPESInfo* app, char* infilename ) {	
-	int i, j, **mat_ii;
-	double *vec_d, **mat_dd;
-	const int npair = ( app->natom ) * ( app->natom - 1 ) / 2, order = 8;
-	const int nbase = Combination( npair + order, order );
-	VectorXf a( nbase ), F( npoint );
-	MatrixXf g( npoint, nbase );
+void AppPES_Fitting_LS( AppPESInfo *app, Atom **mols, double *enes, int nref ) {
+	int i, j, k;
+	double *dist, **mat_dd;
+	const int npair = ( app->natom ) * ( app->natom - 1 ) / 2;
+	const int nbase = Combination( npair + app->order, app->order );
+	VectorXf a( nbase ), F( nref );
+	MatrixXf g( nref, nbase );
 
-	vec_d = ( double* )malloc( sizeof( double ) * npoint );
-	mat_dd = ( double** )malloc( sizeof( double* ) * npoint );
-	mat_ii = ( int** )malloc( sizeof( int* ) * nbase );
-	for(i = 0;i < npoint;i++) { mat_dd[i] = ( double* )malloc( sizeof( double ) * nbase ); }
-	for(i = 0;i < nbase;i++) { mat_ii[i] = ( int* )malloc( sizeof( int ) * npair ); }
-
-	// Make combination for fitting func start
-	MakeCombination( npair, order, mat_ii );
-	// Make combination for fitting func end
-
-
-	// Set BaseFunc for matrix start
-	for(i = 0;i < npoint;i++) {
-		for(j = 0;j < nabse;j++) {
-			// here
-		}
-	}
-	// Set BaseFunc for matrix end
-
+	mat_dd = ( double** )malloc( sizeof( double* ) * nref ); // basis sets
+	for(i = 0;i < nref;i++) { mat_dd[i] = ( double* )malloc( sizeof( double ) * nbase ); }
 
 	// Make matrix for fit start
-	for(i = 0;i < npoint;i++) {
-		for(j = 0;j < nbase;j++) {
-			mat[i][j] = BaseFunc(); // here
-		}
+	for(i = 0;i < nref;i++) {
+		dist = ( double* )malloc( sizeof( double ) * npair );
+		ConvertMOLtoDIST( app->natom, mols[i], dist );
+		for(j = 0;j < nbase;j++) { mat_dd[i][j] = BaseFunc( app->b[j], dist ); }
+		free( dist );
 	}
 	// Make matrix for fit end
 
-
 	// Fitting start
-	for(i = 0;i < npoint;i++) { F( i ) = vec[i]; }
-	for(i = 0;i < npoint;i++) { for(j = 0;j < nbase;j++) { g( i, j ) = mat[i][j]; } }
+	for(i = 0;i < nref;i++) { F( i ) = enes[i]; } // energy
+	for(i = 0;i < nref;i++) { for(j = 0;j < nbase;j++) { g( i, j ) = mat_dd[i][j]; } } // 
 	a = g.colPivHouseholderQr().solve( F );
-	for(i = 0;i < nbase;i++) { app.coeff[i] = a(i); }
+	for(i = 0;i < nbase;i++) { app->coeff[i] = a( i ); }
 	// Fitting end
 
-
-	for(i = 0;i < npoint;i++) { free( mat_dd[i] ); }
-	for(i = 0;i < nbase;i++) { free( mat_ii[i] ); }
-	free( vec );
+	for(i = 0;i < nref;i++) { free( mat_dd[i] ); }
 	free( mat_dd );
-	free( mat_ii );
 
 } // Least square fitting
 
 
 void AppPES_Print( AppPESInfo* app ) {
+	int i;
+	const int npair = ( app->natom ) * ( app->natom - 1 ) / 2;
+	const int nbase = Combination( npair + app->order, app->order );
+
+	fprintf( stdout, "app() = " );
+	for(i = 0;i < nbase;i++) {
+		fprintf( stdout, "( %17.12lf ) * ", app->coeff[i] );
+		BaseFunc_Print( app->b[i] );
+		if(i < nbase - 1) { fprintf( stdout, " + " ); }
+	}
+	fprintf( stdout, "\n" );
+
 } // print fitting func
 
 
-void AppPES_Fitting( AppPESInfo* app, char* infilename ) {
-	char ftype[256];
-	sprintf( ftype, "LS" ); // default : Least Square fitting
-	if( strstr( ftype, "LS" ) ) { AppPES_Fitting_LS( app, argv ); }
-	AppPES_Print( app );
-} // Main routine for fitting
+void AppPES_SetBaseFunc( AppPESInfo* app ) {
+	int i, j, **mat_ii;
+	const int npair = ( app->natom ) * ( app->natom - 1 ) / 2;
+	const int nbase = Combination( npair + app->order, app->order );
+
+	mat_ii = ( int** )malloc( sizeof( int* ) * nbase );
+	for(i = 0;i < nbase;i++) { mat_ii[i] = ( int* )malloc( sizeof( int ) * npair ); }
+	
+	MakeCombination( npair, app->order, mat_ii );
+
+	for(i = 0;i < nbase;i++) {
+		app->b[i]->exp = mat_ii[i];
+		app->b[i]->npair = npair;
+	}
+
+	free( mat_ii );
+
+}
+
+
+void GetReffromXYZFILE( FILE* fp, Atom** mols_ref, double* enes_ref, int nref ) {
+	int natom, i, j;
+	char *pt, line[256];
+	Atom a;
+
+	for(i = 0;i < nref;i++) {
+		fgets( line, 256, fp );
+		sscanf( line, "%d", &natom );
+		fgets( line, 256, fp );
+		pt = strstr( line, "/" );
+		sscanf( pt + 1, "%17lf", &enes_ref[i] );
+
+		for(j = 0;j < natom;j++) {
+			fgets( line, 256, fp );
+			a.SetfromString( line );
+			mols_ref[i][j] = a;
+		}
+	}
+
+}
 
 
 int main( int argc, char* argv[] ) {
-	AppPESInfo *app;
-	AppPES_Malloc( app );
-	AppPES_Fitting( app, argv[1] );
-	AppPES_Free( app );
+	AppPESInfo app;
+	Atom **mols_ref;
+	double *enes_ref;
+	int nref, i, cnt = 0;
+	FILE *fp_xyz, *fp_infile;
+	char line[256], xyz[256], *pt;
+
+	fp_infile = fopen( argv[1], "r");
+	if( !fp_infile ) { return -1; }
+
+	while( fgets( line, 256, fp_infile ) ) {
+		pt = strstr( line ,"=" );
+		if( strstr( line, "ref file") ) { sscanf( pt + 2, "%s", xyz ); cnt++;  }
+		else if( strstr( line, "ref number") ) { sscanf( pt + 2, "%d", &nref ); cnt++; }
+		else if( strstr( line, "atom number") ) { sscanf( pt + 2, "%d", &app.natom ); cnt++; }
+		else if( strstr( line, "order") ) { sscanf( pt + 2, "%d", &app.order ); cnt++; }
+	}
+
+	if( cnt < 4 ) { return -1; }
+
+	fp_xyz = fopen( xyz, "r" );
+	mols_ref = new Atom* [nref];
+	enes_ref = new double [nref];
+	for(i = 0;i < nref;i++) { mols_ref[i] = new Atom [app.natom]; }
+
+	GetReffromXYZFILE( fp_xyz, mols_ref, enes_ref, nref );
+
+	AppPES_Malloc( &app );
+	AppPES_SetBaseFunc( &app );
+	if( "LS" ) { AppPES_Fitting_LS( &app, mols_ref, enes_ref, nref ); } // Main routine ( Fitting )
+	// for(i = 0;i < nref;i++) { fprintf( stdout, "Point %d : %17.12lf\n", i, AppPES( &app, mols_ref[i] ) ); } // chk ok
+	AppPES_Print( &app );
+	AppPES_Free( &app );
+
+	for(i = 0;i < nref;i++) { delete [] mols_ref[i]; }
+	delete [] mols_ref;
+	delete [] enes_ref;
+	fclose( fp_infile );
+	fclose( fp_xyz );
+
 	return 0;
 }
