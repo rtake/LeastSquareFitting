@@ -1,4 +1,7 @@
 # include "Rtlib/Rtlib.h"
+# include <eigen-3.3.7/Eigen/Dense>
+
+using namespace Eigen;
 
 typedef struct BaseInfo_{
 	int* exp;
@@ -30,40 +33,6 @@ typedef struct AppPESInfo_{
 	FILE *fp;
 	BaseInfo **b;
 } AppPESInfo;
-
-
-// void AppPES_LeastSquareFitting() {}
-// void AppPES_SetMatrixXf() { }
-// void AppPES_SetBaseFunc() {}
-
-
-void AppPES_Print( AppPESInfo *a ) {
-
-
-
-
-}
-
-
-void AppPES_SetCoeff( AppPESInfo *a, FILE* fp ) {
-	int i, nbase, npair;
-	char line[256];
-
-	npair = a->natom * ( a->natom - 1 ) / 2;
-	nbase = Combination( npair + a->order, a->order );
-
-	while( fgets( line, 256, fp ) ) { if( strstr( line, "Coeff." ) ) { break; } }
-	for(i = 0;i < nbase;i++) {
-		fgets( line, 256, fp );
-		sscanf( line, "%17lf", &a->coeff[i] );
-	}
-
-	/* chk */
-	/*
-	for(i = 0;i < nbase;i++) { fprintf( a->fp, "%d\t%17.12lf\n", i, a->coeff[i] ); }
-	*/
-	/* chk end */
-}
 
 
 void ConvertMOLtoDIST( int natom, Atom* m, double* vec ) {
@@ -186,97 +155,76 @@ void AppPES_Free( AppPESInfo* a ) {
 }
 
 
+void AppPES_Fitting_LS( AppPESInfo* app, char* infilename ) {	
+	int i, j, **mat_ii;
+	double *vec_d, **mat_dd;
+	const int npair = ( app->natom ) * ( app->natom - 1 ) / 2, order = 8;
+	const int nbase = Combination( npair + order, order );
+	VectorXf a( nbase ), F( npoint );
+	MatrixXf g( npoint, nbase );
+
+	vec_d = ( double* )malloc( sizeof( double ) * npoint );
+	mat_dd = ( double** )malloc( sizeof( double* ) * npoint );
+	mat_ii = ( int** )malloc( sizeof( int* ) * nbase );
+	for(i = 0;i < npoint;i++) { mat_dd[i] = ( double* )malloc( sizeof( double ) * nbase ); }
+	for(i = 0;i < nbase;i++) { mat_ii[i] = ( int* )malloc( sizeof( int ) * npair ); }
+
+	// Make combination for fitting func start
+	MakeCombination( npair, order, mat_ii );
+	// Make combination for fitting func end
+
+
+	// Set BaseFunc for matrix start
+	for(i = 0;i < npoint;i++) {
+		for(j = 0;j < nabse;j++) {
+			// here
+		}
+	}
+	// Set BaseFunc for matrix end
+
+
+	// Make matrix for fit start
+	for(i = 0;i < npoint;i++) {
+		for(j = 0;j < nbase;j++) {
+			mat[i][j] = BaseFunc(); // here
+		}
+	}
+	// Make matrix for fit end
+
+
+	// Fitting start
+	for(i = 0;i < npoint;i++) { F( i ) = vec[i]; }
+	for(i = 0;i < npoint;i++) { for(j = 0;j < nbase;j++) { g( i, j ) = mat[i][j]; } }
+	a = g.colPivHouseholderQr().solve( F );
+	for(i = 0;i < nbase;i++) { app.coeff[i] = a(i); }
+	// Fitting end
+
+
+	for(i = 0;i < npoint;i++) { free( mat_dd[i] ); }
+	for(i = 0;i < nbase;i++) { free( mat_ii[i] ); }
+	free( vec );
+	free( mat_dd );
+	free( mat_ii );
+
+} // Least square fitting
+
+
+void AppPES_Print( AppPESInfo* app ) {
+} // print fitting func
+
+
+void AppPES_Fitting( AppPESInfo* app, char* infilename ) {
+	char ftype[256];
+	sprintf( ftype, "LS" ); // default : Least Square fitting
+	if( strstr( ftype, "LS" ) ) { AppPES_Fitting_LS( app, argv ); }
+	AppPES_Print( app );
+} // Main routine for fitting
+
+
 int main( int argc, char* argv[] ) {
-	FILE *fp, *fp_in;
-	char line[256], infiles[256], fit[256], infile[256], log[256];
-	int i, j, k, num, cycle, maxcycle = 10000;
-	double ene_diff, ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.0000001, *diff;
-
-	AppPESInfo a;
-	Atom *m, *m_diff;
-
-	fp = fopen( argv[1], "r" );
-	while( fgets( line, 256, fp ) ) {
-		const char *pt = strstr( line, ":" );
-		if( strstr( line, "order" ) ) { sscanf( pt + 2, "%d", &a.order ); }
-		if( strstr( line, "nfile" ) ) { sscanf( pt + 2, "%d", &num ); }
-		if( strstr( line, "infiles" ) ) { sscanf( pt + 2, "%s", infiles ); }
-		if( strstr( line, "fit" ) ) { sscanf( pt + 2, "%s", fit ); }
-		if( strstr( line, "atom" ) ) { sscanf( pt + 2, "%d", &a.natom ); }
-		if( strstr( line, "log" ) ) { sscanf( pt + 2, "%s", log ); }
-	}
-	fclose( fp );
-
-	fp = fopen( infiles, "r" );
-	a.fp = fopen( log, "w" );
-	for(i = 0;i < num;i++) {
-		m = new Atom[a.natom];
-
-		fprintf( a.fp, "%d start\n", i );
-
-		fgets( line, 256, fp );
-		sscanf( line, "%s", infile );
-		fp_in = fopen( infile, "r" );
-		LoadfromXYZ( m, &a, fp_in );
-		fclose( fp_in );
-
-		fprintf( a.fp, "AppPES_Malloc() start\n");
-		AppPES_Malloc( &a );
-
-		fprintf( a.fp, "AppPES_SetCoeff() start\n" );
-		fp_in = fopen( fit, "r" );
-		AppPES_SetCoeff( &a, fp_in );
-		fclose( fp_in );
-
-		/* Optimization start */
-
-		for(cycle = 0;cycle < maxcycle;cycle++) {
-			diff = new double[a.natom * 3]; // energy diff
-			ene0 = AppPES( &a, m );
-
-			for(j = 0;j < a.natom * 3;j++) {
-				m_diff = new Atom[a.natom];
-
-				for(k = 0;k < a.natom;k++) { m_diff[k] = m[k]; }
-				m_diff[j / 3].SetCrd( j % 3, m_diff[j / 3].GetCrd( j % 3 ) + ssize );
-				diff[j] = ( AppPES( &a, m_diff ) - ene0 ) / ssize;
-
-				delete [] m_diff;
-			} // calc. diff
-
-			for(j = 0;j < a.natom * 3;j++) { m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) - alpha * diff[j] ); } // update
-
-			ene1 = AppPES( &a, m );
-			ene_diff = ene1 - ene0;
-
-			if( abs( ene_diff ) < threshold ) { break; }
-
-			/* FILE OUT START */
-			///*
-			fprintf( stdout, "%d\n", a.natom );
-			fprintf( stdout, "# Cycle. %d/%17.12lf\n", cycle, ene1 );
-			for(j = 0;j < a.natom;j++) {
-				fprintf( stdout, "%s", m[j].GetElm().c_str() );
-				for(k = 0;k < 3;k++) { fprintf( stdout, "\t%17.12lf", m[j].GetCrd(k) ); }
-				fprintf( stdout, "\n" );
-			}
-			//*/
-			/* FILE OUT END */
-
-			delete [] diff;
-		} // while not converged 
-
-		/* Optimization end */
-
-		// fprintf( a.fp, "AppPES() start\n" );
-		// AppPES( &a, m );
-
-		fprintf( a.fp, "AppPES_Free() start\n" );
-		AppPES_Free( &a );
-		delete [] m;		
-	}
-	fclose( fp );
-	fclose( a.fp );
-	
+	AppPESInfo *app;
+	AppPES_Malloc( app );
+	AppPES_Fitting( app, argv[1] );
+	AppPES_Free( app );
 	return 0;
 }
