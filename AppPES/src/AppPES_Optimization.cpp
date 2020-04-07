@@ -247,7 +247,7 @@ int main( int argc, char* argv[] ) {
 			for(k = 0;k < 3;k++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mol[j].GetCrd(k) ) ); }
 			fprintf( fp_out, "\n" );
 		} // geometry
-		fprintf( fp_out, "ENERGY\t%17.12lf\n\n", ene0 ); 
+		fprintf( fp_out, "Item          Value\nENERGY          %17.12lf\n\n", ene0 ); 
 		for(j = 0;j < a.natom;j++) {
 			for(k = 0;k < 3;k++) {
 				fprintf( fp_out, "FWD DIFF Str. %d\n", 3*j + k );
@@ -256,7 +256,7 @@ int main( int argc, char* argv[] ) {
 					for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_fwd_diff[3*j + k][l].GetCrd( m ) ) ); }
 					fprintf( fp_out, "\n" );
 				}
-				fprintf( fp_out, "ENERGY\t%17.12lf\n", ene_fwd_diff[3*j + k] );
+				fprintf( fp_out, "ENERGY          %17.12lf\n", ene_fwd_diff[3*j + k] );
 
 				fprintf( fp_out, "BCK DIFF Str. %d\n", 3*j + k );
 				for(l = 0;l < a.natom;l++) {
@@ -264,7 +264,7 @@ int main( int argc, char* argv[] ) {
                                         for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_bck_diff[3*j + k][l].GetCrd( m ) ) ); }
                                         fprintf( fp_out, "\n" );
                                 }
-				fprintf( fp_out, "ENERGY\t%17.12lf\n", ene_bck_diff[3*j + k] );
+				fprintf( fp_out, "ENERGY          %17.12lf\n", ene_bck_diff[3*j + k] );
 				fprintf( fp_out, "GRADIENT[%d]\t%17.12lf(%17.12lf - %17.12lf / %17.12lf)\n\n", 3*j + k, grad[3*j + k], ene_fwd_diff[3*j + k], ene_bck_diff[3*j + k], ang_to_bohr( ssize * 2 ) );
 			}
 		} // gradient
