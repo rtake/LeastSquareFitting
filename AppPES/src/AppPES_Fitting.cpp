@@ -85,7 +85,7 @@ double AppPES( AppPESInfo *a, Atom* m ) {
 
 	for(i = 0;i < nbase;i++) {
 		e += a->coeff[i] * BaseFunc( a->b[i], vec ) ;
-		// fprintf( stdout, "coeff[%d] : %17.12lf, BaseFunc : %17.12lf\n", i, a->coeff[i], BaseFunc( a->b[i], vec ) );
+		fprintf( stdout, "coeff[%d] : %17.12lf, BaseFunc : %17.12lf\n", i, a->coeff[i], BaseFunc( a->b[i], vec ) );
 	}	// energy calculated here	// error
 
 	/* FILE OUT START */
@@ -98,6 +98,7 @@ double AppPES( AppPESInfo *a, Atom* m ) {
 
 	free( vec );
 
+	fprintf( stdout, "AppPES() :%lf\n", e );
 	return e;
 } // get energy	// ok
 
@@ -192,6 +193,9 @@ void AppPES_Fitting_LS( AppPESInfo *app, Atom **mols, double *enes, int nref ) {
 	for(i = 0;i < nbase;i++) { app->coeff[i] = a( i ); }
 	// Fitting end
 
+	fprintf( stdout, "Coeff.\n" );
+	for(i = 0;i < nbase;i++) { fprintf( stdout, "%17.12lf\n", app->coeff[i] ); }
+
 	for(i = 0;i < nref;i++) { free( mat_dd[i] ); }
 	free( mat_dd );
 
@@ -234,68 +238,89 @@ void AppPES_SetBaseFunc( AppPESInfo* app ) {
 }
 
 
-void GetReffromXYZFILE( FILE* fp, Atom** mols_ref, double* enes_ref, int nref ) {
-	int natom, i, j;
+int GetPointfromXYZFILE( FILE* fp, Atom** mols_ref, double* enes_ref ) {
+	int natom, nref, i, j;
 	char *pt, line[256];
 	Atom a;
 
-	for(i = 0;i < nref;i++) {
-		fgets( line, 256, fp );
+	nref = 0;
+	while( fgets( line, 256, fp ) ) {
 		sscanf( line, "%d", &natom );
 		fgets( line, 256, fp );
 		pt = strstr( line, "/" );
-		sscanf( pt + 1, "%17lf", &enes_ref[i] );
+		sscanf( pt + 1, "%17lf", &enes_ref[nref] );
 
-		for(j = 0;j < natom;j++) {
+		for(i = 0;i < natom;i++) {
 			fgets( line, 256, fp );
 			a.SetfromString( line );
-			mols_ref[i][j] = a;
+			mols_ref[nref][i] = a;
 		}
+
+		nref++;
 	}
 
+	return nref;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 int main( int argc, char* argv[] ) {
 	AppPESInfo app;
-	Atom **mols_ref;
-	double *enes_ref;
-	int nref, i, cnt = 0;
-	FILE *fp_xyz, *fp_infile;
-	char line[256], xyz[256], *pt;
+	Atom **mols;
+	double *enes;
+	int nref, i, j, k, cnt = 0, npoint, maxnum = 10000;
+	FILE *fp_xyz, *fp_infile, *fp_in;
+	char line[256], xyz[256], *pt, infile[256];
 
 	fp_infile = fopen( argv[1], "r");
 	if( !fp_infile ) { return -1; }
 
 	while( fgets( line, 256, fp_infile ) ) {
 		pt = strstr( line ,"=" );
-		if( strstr( line, "ref file") ) { sscanf( pt + 2, "%s", xyz ); cnt++;  }
-		else if( strstr( line, "ref number") ) { sscanf( pt + 2, "%d", &nref ); cnt++; }
-		else if( strstr( line, "atom number") ) { sscanf( pt + 2, "%d", &app.natom ); cnt++; }
-		else if( strstr( line, "order") ) { sscanf( pt + 2, "%d", &app.order ); cnt++; }
+		if( strstr( line, "ref file") ) { sscanf( pt + 1, "%s", xyz ); cnt++;  }
+		else if( strstr( line, "inp file") ) { sscanf( pt + 1, "%s", infile ); cnt++;  }
+		else if( strstr( line, "atom number") ) { sscanf( pt + 1, "%d", &app.natom ); cnt++; }
+		else if( strstr( line, "ref number") ) { sscanf( pt + 1, "%d", &nref ); cnt++; }
+		else if( strstr( line, "order") ) { sscanf( pt + 1, "%d", &app.order ); cnt++; }
 	}
 
+	fclose( fp_infile );
 	if( cnt < 4 ) { return -1; }
 
-	fp_xyz = fopen( xyz, "r" );
-	mols_ref = new Atom* [nref];
-	enes_ref = new double [nref];
-	for(i = 0;i < nref;i++) { mols_ref[i] = new Atom [app.natom]; }
+	mols = new Atom* [maxnum];
+	enes = new double [maxnum];
+	for(i = 0;i < maxnum;i++) { mols[i] = new Atom [app.natom]; }
 
-	GetReffromXYZFILE( fp_xyz, mols_ref, enes_ref, nref );
+	fp_xyz = fopen( xyz, "r" );
+	nref = GetPointfromXYZFILE( fp_xyz, mols, enes ); // ref.
+	for(i = 0;i < nref;i++) {
+		for(j = 0;j < app.natom;j++) {
+			for(k = 0;k < 3;k++) { mols[i][j].SetCrd( k, ang_to_bohr( mols[i][j].GetCrd(k) ) ); }
+		}
+	} // convert Ang --> Bohr
 
 	AppPES_Malloc( &app );
 	AppPES_SetBaseFunc( &app );
-	if( "LS" ) { AppPES_Fitting_LS( &app, mols_ref, enes_ref, nref ); } // Main routine ( Fitting )
-	// for(i = 0;i < nref;i++) { fprintf( stdout, "Point %d : %17.12lf\n", i, AppPES( &app, mols_ref[i] ) ); } // chk ok
-	AppPES_Print( &app );
+	if( "LS" ) { AppPES_Fitting_LS( &app, mols, enes, nref ); } // Main routine ( Fitting )
+
+	fp_in = fopen( infile, "r" );
+	npoint = GetPointfromXYZFILE( fp_in, mols, enes );
+	for(i = 0;i < npoint;i++) {
+                for(j = 0;j < app.natom;j++) {
+                        for(k = 0;k < 3;k++) { mols[i][j].SetCrd( k, ang_to_bohr( mols[i][j].GetCrd(k) ) ); }
+                }
+        } // convert Ang --> Bohr
+	for(i = 0;i < npoint;i++) { fprintf( stdout, "Point %d : %17.12lf\n", i, AppPES( &app, mols[i] ) ); } // chk ok
+
+	// AppPES_Print( &app );
 	AppPES_Free( &app );
 
-	for(i = 0;i < nref;i++) { delete [] mols_ref[i]; }
-	delete [] mols_ref;
-	delete [] enes_ref;
-	fclose( fp_infile );
 	fclose( fp_xyz );
+	fclose( fp_in );
+	for(i = 0;i < maxnum;i++) { delete [] mols[i]; }
+	delete [] mols;
+	delete [] enes;
 
 	return 0;
 }

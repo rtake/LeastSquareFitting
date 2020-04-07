@@ -1,4 +1,4 @@
-# include "Rtlib/Rtlib.h"
+# include "Rtlib/src/Rtlib.h"
 
 typedef struct BaseInfo_{
 	int* exp;
@@ -30,19 +30,6 @@ typedef struct AppPESInfo_{
 	FILE *fp;
 	BaseInfo **b;
 } AppPESInfo;
-
-
-// void AppPES_LeastSquareFitting() {}
-// void AppPES_SetMatrixXf() { }
-// void AppPES_SetBaseFunc() {}
-
-
-void AppPES_Print( AppPESInfo *a ) {
-
-
-
-
-}
 
 
 void AppPES_SetCoeff( AppPESInfo *a, FILE* fp ) {
@@ -119,6 +106,7 @@ double AppPES( AppPESInfo *a, Atom* m ) {
 
 	free( vec );
 
+	// fprintf( stdout, "AppPES() :%lf\n", e );
 	return e;
 } // get energy	// ok
 
@@ -187,96 +175,112 @@ void AppPES_Free( AppPESInfo* a ) {
 
 
 int main( int argc, char* argv[] ) {
-	FILE *fp, *fp_in;
-	char line[256], infiles[256], fit[256], infile[256], log[256];
-	int i, j, k, num, cycle, maxcycle = 10000;
-	double ene_diff, ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.0000001, *diff;
+	FILE *fp, *fp_in, *fp_out = stdout;
+	char line[256], input[256], fit[256];
+	int i, j, k, l, m, num, itr, maxitr = 10000, chk = 0;
+	double ene0, ene1, ssize = 0.002, threshold = 0.0000001, alpha = 0.002, *grad, *ene_fwd_diff, *ene_bck_diff;
 
 	AppPESInfo a;
-	Atom *m, *m_diff;
+	Atom *mol, **mols_fwd_diff, **mols_bck_diff;
 
-	fp = fopen( argv[1], "r" );
-	while( fgets( line, 256, fp ) ) {
-		const char *pt = strstr( line, ":" );
-		if( strstr( line, "order" ) ) { sscanf( pt + 2, "%d", &a.order ); }
-		if( strstr( line, "nfile" ) ) { sscanf( pt + 2, "%d", &num ); }
-		if( strstr( line, "infiles" ) ) { sscanf( pt + 2, "%s", infiles ); }
-		if( strstr( line, "fit" ) ) { sscanf( pt + 2, "%s", fit ); }
-		if( strstr( line, "atom" ) ) { sscanf( pt + 2, "%d", &a.natom ); }
-		if( strstr( line, "log" ) ) { sscanf( pt + 2, "%s", log ); }
+	fp_in = fopen( argv[1], "r" );
+	while( fgets( line, 256, fp_in ) ) {
+		const char *pt = strstr( line, "=" );
+		if( strstr( line, "input" ) ) { sscanf( pt + 1, "%s", input ); }
+		else if( strstr( line, "fit_order" ) ) { sscanf( pt + 1, "%d", &a.order ); }
+		else if( strstr( line, "fit_param" ) ) { sscanf( pt + 1, "%s", fit ); }
+		else if( strstr( line, "maxoptitr" ) ) { sscanf( pt + 1, "%d", &maxitr ); }
+		else if( strstr( line, "stepsize" ) ) { sscanf( pt + 1, "%d", &ssize ); }
 	}
-	fclose( fp );
+	fclose( fp_in );
 
-	fp = fopen( infiles, "r" );
-	a.fp = fopen( log, "w" );
-	for(i = 0;i < num;i++) {
-		m = new Atom[a.natom];
+	mol = new Atom[1000]; // memory alloc for molcule
 
-		fprintf( a.fp, "%d start\n", i );
+	fp_in = fopen( input, "r" );
+	LoadfromXYZ( mol, &a, fp_in ); // load input
+	for(j = 0;j < a.natom;j++) { for(k = 0;k < 3;k++) { mol[j].SetCrd( k, ang_to_bohr( mol[j].GetCrd(k) ) ); } } // convert Ang --> Bohr
+	fclose( fp_in );
 
-		fgets( line, 256, fp );
-		sscanf( line, "%s", infile );
-		fp_in = fopen( infile, "r" );
-		LoadfromXYZ( m, &a, fp_in );
-		fclose( fp_in );
+	AppPES_Malloc( &a ); // memory alloc
 
-		fprintf( a.fp, "AppPES_Malloc() start\n");
-		AppPES_Malloc( &a );
+	fp_in = fopen( fit, "r" );
+	AppPES_SetCoeff( &a, fp_in ); // get param for AppPES()
+	fclose( fp_in );
 
-		fprintf( a.fp, "AppPES_SetCoeff() start\n" );
-		fp_in = fopen( fit, "r" );
-		AppPES_SetCoeff( &a, fp_in );
-		fclose( fp_in );
-
-		/* Optimization start */
-
-		for(cycle = 0;cycle < maxcycle;cycle++) {
-			diff = new double[a.natom * 3]; // energy diff
-			ene0 = AppPES( &a, m );
-
-			for(j = 0;j < a.natom * 3;j++) {
-				m_diff = new Atom[a.natom];
-
-				for(k = 0;k < a.natom;k++) { m_diff[k] = m[k]; }
-				m_diff[j / 3].SetCrd( j % 3, m_diff[j / 3].GetCrd( j % 3 ) + ssize );
-				diff[j] = ( AppPES( &a, m_diff ) - ene0 ) / ssize;
-
-				delete [] m_diff;
-			} // calc. diff
-
-			for(j = 0;j < a.natom * 3;j++) { m[j / 3].SetCrd( j % 3, m[j / 3].GetCrd( j % 3 ) - alpha * diff[j] ); } // update
-
-			ene1 = AppPES( &a, m );
-			ene_diff = ene1 - ene0;
-
-			if( abs( ene_diff ) < threshold ) { break; }
-
-			/* FILE OUT START */
-			///*
-			fprintf( stdout, "%d\n", a.natom );
-			fprintf( stdout, "# Cycle. %d/%17.12lf\n", cycle, ene1 );
-			for(j = 0;j < a.natom;j++) {
-				fprintf( stdout, "%s", m[j].GetElm().c_str() );
-				for(k = 0;k < 3;k++) { fprintf( stdout, "\t%17.12lf", m[j].GetCrd(k) ); }
-				fprintf( stdout, "\n" );
+	chk = 1;
+	for(itr = 0;itr < maxitr && chk > 0;itr++) {
+		grad = new double[a.natom * 3]; // gradient
+		ene_fwd_diff = new double [a.natom * 3]; // energy for diff. str.
+		ene_bck_diff = new double [a.natom * 3];
+		mols_fwd_diff = new Atom* [a.natom * 3];
+		mols_bck_diff = new Atom* [a.natom * 3];
+		for(j = 0;j < a.natom;j++) {
+			for(k = 0;k < 3;k++) {
+				mols_fwd_diff[3*j + k] = new Atom[a.natom];
+				mols_bck_diff[3*j + k] = new Atom[a.natom];
 			}
-			//*/
-			/* FILE OUT END */
+		} 
 
-			delete [] diff;
-		} // while not converged 
+		ene0 = AppPES( &a, mol ); // energy for current str.
+		
+		for(j = 0;j < a.natom;j++) {
+			for(k = 0;k < 3;k++) {
+				for(l = 0;l < a.natom;l++) {
+					mols_fwd_diff[3*j + k][l] = mol[l];
+					mols_bck_diff[3*j + k][l] = mol[l];
+				} // copy
+				mols_fwd_diff[3*j + k][j].SetCrd( k, mol[j].GetCrd( k ) + ang_to_bohr( ssize ) );
+				mols_bck_diff[3*j + k][j].SetCrd( k, mol[j].GetCrd( k ) - ang_to_bohr( ssize ) );
+				ene_fwd_diff[3*j + k] = AppPES( &a, mols_fwd_diff[3*j + k] );
+				ene_bck_diff[3*j + k] = AppPES( &a, mols_bck_diff[3*j + k] );	
+				grad[3*j + k] = ( ene_fwd_diff[3*j + k] - ene_bck_diff[3*j + k] ) / ang_to_bohr( ssize * 2 );
+				if( abs( grad[3*j + k] ) < threshold ) { chk = -1; }
+				if( k > 0 ) { grad[3*j + k] = 0; }
+			}
+		} // calc. grad.
 
-		/* Optimization end */
 
-		// fprintf( a.fp, "AppPES() start\n" );
-		// AppPES( &a, m );
+		// FILE OUT START
+		fprintf( fp_out, "# ITR. %d\n", itr);
+		for(j = 0;j < a.natom;j++) {
+			fprintf( fp_out, "%s", mol[j].GetElm().c_str() );
+			for(k = 0;k < 3;k++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mol[j].GetCrd(k) ) ); }
+			fprintf( fp_out, "\n" );
+		} // geometry
+		fprintf( fp_out, "ENERGY\t%17.12lf\n\n", ene0 ); 
+		for(j = 0;j < a.natom;j++) {
+			for(k = 0;k < 3;k++) {
+				fprintf( fp_out, "FWD DIFF Str. %d\n", 3*j + k );
+				for(l = 0;l < a.natom;l++) {
+					fprintf( fp_out, "%s", mols_fwd_diff[3*j + k][l].GetElm().c_str() );
+					for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_fwd_diff[3*j + k][l].GetCrd( m ) ) ); }
+					fprintf( fp_out, "\n" );
+				}
+				fprintf( fp_out, "ENERGY\t%17.12lf\n", ene_fwd_diff[3*j + k] );
 
-		fprintf( a.fp, "AppPES_Free() start\n" );
-		AppPES_Free( &a );
-		delete [] m;		
-	}
-	fclose( fp );
-	fclose( a.fp );
+				fprintf( fp_out, "BCK DIFF Str. %d\n", 3*j + k );
+				for(l = 0;l < a.natom;l++) {
+                                        fprintf( fp_out, "%s", mols_bck_diff[3*j + k][l].GetElm().c_str() );
+                                        for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_bck_diff[3*j + k][l].GetCrd( m ) ) ); }
+                                        fprintf( fp_out, "\n" );
+                                }
+				fprintf( fp_out, "ENERGY\t%17.12lf\n", ene_bck_diff[3*j + k] );
+				fprintf( fp_out, "GRADIENT[%d]\t%17.12lf(%17.12lf - %17.12lf / %17.12lf)\n\n", 3*j + k, grad[3*j + k], ene_fwd_diff[3*j + k], ene_bck_diff[3*j + k], ang_to_bohr( ssize * 2 ) );
+			}
+		} // gradient
+		fprintf( stdout, "\n" );
+		// FILE OUT END
+
+
+		for(j = 0;j < a.natom;j++) { for(k = 0;k < 3;k++) { mol[j].SetCrd( k, mol[j].GetCrd( k ) - ang_to_bohr( alpha ) * grad[3*j + k] ); } } // update
+
+		for(j = 0;j < a.natom;j++) { for(k = 0;k < 3;k++) { delete [] mols_fwd_diff[3*j + k], mols_bck_diff[3*j + k]; } }
+		delete [] ene_fwd_diff, ene_bck_diff, mols_fwd_diff, mols_bck_diff, grad;
+	} // optimize
+
+
+	AppPES_Free( &a );
+	delete [] mol;
 	
 	return 0;
 }
