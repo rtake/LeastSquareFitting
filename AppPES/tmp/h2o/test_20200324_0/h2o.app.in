@@ -1,0 +1,4 @@
+ref file = h2o.log.xyz
+ref number = 28
+atom number = 3
+order = 4

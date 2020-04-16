@@ -207,8 +207,9 @@ int main( int argc, char* argv[] ) {
 	AppPES_SetCoeff( &a, fp_in ); // get param for AppPES()
 	fclose( fp_in );
 
-	chk = 1;
-	for(itr = 0;itr < maxitr && chk > 0;itr++) {
+	chk = 0;
+	for(itr = 0;itr < maxitr && chk < a.natom * 3;itr++) {
+		chk = 0;
 		grad = new double[a.natom * 3]; // gradient
 		ene_fwd_diff = new double [a.natom * 3]; // energy for diff. str.
 		ene_bck_diff = new double [a.natom * 3];
@@ -234,8 +235,8 @@ int main( int argc, char* argv[] ) {
 				ene_fwd_diff[3*j + k] = AppPES( &a, mols_fwd_diff[3*j + k] );
 				ene_bck_diff[3*j + k] = AppPES( &a, mols_bck_diff[3*j + k] );	
 				grad[3*j + k] = ( ene_fwd_diff[3*j + k] - ene_bck_diff[3*j + k] ) / ang_to_bohr( ssize * 2 );
-				if( abs( grad[3*j + k] ) < threshold ) { chk = -1; }
-				if( k > 0 ) { grad[3*j + k] = 0; }
+				if( abs( grad[3*j + k] ) < threshold ) { chk++; }
+				// if( k > 0 ) { grad[3*j + k] = 0; }
 			}
 		} // calc. grad.
 
@@ -256,7 +257,7 @@ int main( int argc, char* argv[] ) {
 					for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_fwd_diff[3*j + k][l].GetCrd( m ) ) ); }
 					fprintf( fp_out, "\n" );
 				}
-				fprintf( fp_out, "ENERGY          %17.12lf\n", ene_fwd_diff[3*j + k] );
+				fprintf( fp_out, "energy          %17.12lf\n", ene_fwd_diff[3*j + k] );
 
 				fprintf( fp_out, "BCK DIFF Str. %d\n", 3*j + k );
 				for(l = 0;l < a.natom;l++) {
@@ -264,7 +265,7 @@ int main( int argc, char* argv[] ) {
                                         for(m = 0;m < 3;m++) { fprintf( fp_out, "\t%17.12lf", bohr_to_ang( mols_bck_diff[3*j + k][l].GetCrd( m ) ) ); }
                                         fprintf( fp_out, "\n" );
                                 }
-				fprintf( fp_out, "ENERGY          %17.12lf\n", ene_bck_diff[3*j + k] );
+				fprintf( fp_out, "energy          %17.12lf\n", ene_bck_diff[3*j + k] );
 				fprintf( fp_out, "GRADIENT[%d]\t%17.12lf(%17.12lf - %17.12lf / %17.12lf)\n\n", 3*j + k, grad[3*j + k], ene_fwd_diff[3*j + k], ene_bck_diff[3*j + k], ang_to_bohr( ssize * 2 ) );
 			}
 		} // gradient

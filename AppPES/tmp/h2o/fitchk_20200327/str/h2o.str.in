@@ -1,0 +1,3 @@
+natom=3
+npoint=100
+ref file=h2o.ref
