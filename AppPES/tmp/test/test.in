@@ -1,6 +1,0 @@
-natom	: 23
-order	: 2
-fit	: test.fit
-infiles	: test.list
-nfile	: 2
-log	: test.log

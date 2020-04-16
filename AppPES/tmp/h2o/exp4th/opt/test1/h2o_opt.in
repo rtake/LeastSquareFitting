@@ -1,6 +1,0 @@
-natom	: 3
-order	: 4
-fit	: h2o.fit
-infiles	: h2o_opt.list
-nfile	: 1
-log	: h2o_opt.log

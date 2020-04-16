@@ -1,8 +1,0 @@
-nref	: 6
-rst	: 3
-natom	: 3
-npoint	: 11
-refs	: h2o.ref
-fit	: h2o_exptype_2nd.fit
-type	: exp type
-all	: h2o.all

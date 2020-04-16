@@ -1,9 +1,0 @@
-nref	: 25
-rst	: 8
-natom	: 3
-npoint	: 25
-refs	: h2o_25point.ref
-fit	: h2o_exp8th_qr_25point.fit
-type	: exp type
-all	: h2o.all
-solver	: qr

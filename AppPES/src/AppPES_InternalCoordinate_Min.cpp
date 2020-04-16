@@ -192,9 +192,11 @@ void AppPES_Minimization( AppPES_MinInfo *min, Atom *mol ) {
 		}
 	}
 
+	CartesianToInternal( min->app->natom, mol, icrd ); // bohr
+
 	for(itr = 0;itr < min->maxoptitr && convergechk == 0;itr++) {
 		convergechk = 1;
-		CartesianToInternal( min->app->natom, mol, icrd ); // Cart --> Int
+		InternalToCartesian( min->app->natom, mol, icrd ); // bohr
 
 		for(i = 0;i < dfree;i++) {
 			for(j = 0;j < 2;j++) {
@@ -209,18 +211,29 @@ void AppPES_Minimization( AppPES_MinInfo *min, Atom *mol ) {
 			if( grad[i] > threshold ) { convergechk *= 0; } // if all grad is lower than threshold, convergechk = 1
 		}
 
-		for(i = 0;i < min->app->natom;i++) { mol[i].bohrtoang(); }
+		for(i = 0;i < min->app->natom;i++) { mol[i].bohrtoang(); } // bohr --> ang
 
 		fprintf( stdout, "# ITR. %d\n", itr );
 		for(i = 0;i < min->app->natom;i++) {
 			fprintf( stdout, "%s", mol[i].GetElm().c_str() );
-			fprintf( stdout, "\t%17.12lf\t%17.12lf\t%17.12lf\n", mol[i].GetCrd( 0 ), mol[i].GetCrd( 1 ), mol[i].GetCrd( 2 ) );
-		}
+			for(j = 0;j < 3;j++) { fprintf( stdout, "\t%17.12lf", mol[i].GetCrd( j ) ); }
+			fprintf( stdout, "\n" );
+		}	
 		fprintf( stdout, "Item    Value\nENERGY   %17.12lf\n", AppPES( min->app, mol ) );
-		for(i = 0;i < dfree;i++) { fprintf( stdout, "gradient[%d]\t%17.12lf\t(%17.12lf - %17.12lf)\n", i, grad[i], ene_diff[i][0], ene_diff[i][1] ); }
-		fprintf( stdout, "\n" );
+		for(i = 0;i < dfree;i++) {
+			fprintf( stdout, "gradient[%d]\t%17.12lf\n", i, grad[i] );
+			for(j = 0;j < 2;j++) {
+				for(k = 0;k < min->app->natom;k++) {
+					mol_diff[i][j][k].bohrtoang();
+					fprintf( stdout, "%s", mol_diff[i][j][k].GetElm().c_str() );
+					for(l = 0;l < 3;l++) { fprintf( stdout, "\t%17.12lf", mol_diff[i][j][k].GetCrd( l ) ); }
+					fprintf( stdout, "\n" );
+				}
+				fprintf( stdout, "energy   %17.12lf\n", ene_diff[i][j] );
+			}
+		}
+		fprintf( stdout,"\n" );
 
-		InternalToCartesian( min->app->natom, mol, icrd ); // update
 	} // optcycle
 
 	for(i = 0;i < dfree;i++) { for(j = 0;j < 2;j++) { free( icrd_diff[i][j] ); delete [] mol_diff[i][j]; }
